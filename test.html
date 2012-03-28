@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>editor test</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link href="images/favicon.png" rel="icon" type="image/png" />
+	<link rel="stylesheet" type="text/css" href="css/editor.css" />
+	<script type="text/javascript" src="http://192.168.1.120:8084/target/target-script-min.js#anonymous"></script>
+	<script type="text/javascript" src="js/jquery.js"></script>
+	<script type="text/javascript">
+var drdelambre = drdelambre || {
+	cache: {},
+	debug: true,
+	debugTouch: false,
+	inst_id: -1,
+
+	publish : function(topic, args){
+		if(Object.prototype.toString.apply(args) !== '[object Array]')
+			args = [args];
+	
+		var cache = drdelambre.cache;
+		for(var t in cache){
+			if(topic.match(new RegExp(t)))
+				$.each(cache[t], function(){
+					this.apply($, args || []);
+				});
+		}
+	},
+	subscribe : function(topic, callback){
+		var cache = drdelambre.cache;
+		topic = '^' + topic.replace(/\*/,'.*');
+		if(!cache[topic])
+			cache[topic] = [];
+		cache[topic].push(callback);
+		return [topic, callback];
+	},
+	unsubscribe : function(handle){
+		var cache = drdelambre.cache,
+			t = handle[0];
+		cache[t] && $.each(cache[t], function(idx){
+			if(this == handle[1])
+				cache[t].splice(idx, 1);
+		});
+	},
+	class : function(proto){
+		var id = ++drdelambre.inst_id;
+		var fun = function(){
+			if(!(this instanceof arguments.callee))
+				throw new Error('drdelambre.class: not called as a constructor (try adding "new")');
+			for(var member in proto){
+				if(typeof proto[member] !== 'function')
+					this[member] = proto[member];
+				else
+					this[member] = $.proxy(proto[member],this);
+			}
+			this['__inst_id__'] = id;
+			if(this.init) this.init.apply(this,arguments);
+		};
+
+		fun.prototype = proto || {};
+		return fun;
+	},
+	extend : function() {
+		var options, name, src, copy, copyIsArray, clone,
+			target = arguments[0] || {},
+			length = arguments.length;
+	
+		for(var i = 1; i < length; i++ ){
+			if((options = arguments[ i ]) != null){
+				for(name in options){
+					src = target[ name ];
+					copy = options[ name ];
+	
+					if(target === copy)
+						continue;
+	
+					if(copy !== undefined)
+						target[name] = copy;
+				}
+			}
+		}
+		return target;
+	}
+};
+
+drdelambre.extend(drdelambre,{
+	get isTouch() {
+		if(drdelambre.debugTouch)
+			return true;
+		return !!('ontouchend' in document) ? true : false;
+	}
+});
+
+$(document).ready(function(){
+	var edit = new drdelambre.editor.FileEditor('.file-editor');
+	edit.editor.doc.fromURL('http://192.168.1.120/editor/bread.htm');
+});
+	</script>
+	<script type="text/javascript" src="js/editor.js"></script>
+</head>
+<body>
+	<div class="file-editor">
+		<div class="editor">
+			<textarea></textarea>
+			<div class="gutter"></div>
+			<div class="s-button"><div class="text">select</div></div>
+			<div class="m-button">
+				<div class="button first"><div class="text">cut</div></div>
+				<div class="button"><div class="text">copy</div></div>
+				<div class="button last"><div class="text">paste</div></div>
+			</div>
+			<div class="window">
+				<div class="line-marker" style="display:none;">
+					<div class="select top"></div>
+					<div class="select middle"></div>
+					<div class="select bottom"></div>
+					<div class="cursor"><div class="marker"></div><div class="tag"></div></div>
+				</div>
+				<div class="content"></div>
+			</div>
+			<div class="key-toggle"><img src="images/keyboard.png" /> keyboard</div>
+			<div class="zoom"></div>
+		</div>
+		<div class="footer">
+			<div class="line-count">line:<span>1</span> char:<span>0</span></div>
+		</div>
+	</div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+CACHE MANIFEST
+CACHE:
+/images/favicon.png
+test.html
+/css/editor.css
+/js/editor.js
+/js/jquery.js
+/fonts/Inconsolata.otf
+/images/keyboard.png
+
+NETWORK:
+bread.htm
