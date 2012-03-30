@@ -269,7 +269,7 @@ body {
 
 .editor .window .content {
 	height: 100%;
-	margin-left: 0.75em;
+	padding: 0 0.75em;
 	position: relative;
 	z-index: 6;
 	overflow: hidden;

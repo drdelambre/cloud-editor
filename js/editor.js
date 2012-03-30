@@ -255,7 +255,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 		else if(count > this.pager.view.end)
 			count = this.pager.view.end;
 
-		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left,
+		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - parseInt(this.element.find('.content').css('text-indent')),
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
 		mun.innerHTML = Array(rstr.length + 1).join('x');
@@ -475,7 +475,17 @@ drdelambre.editor.Editor = new drdelambre.class({
 
 		var wider = $('<span>' + Array(this.doc.cursor.char + 1).join('x') + '</span>');
 		this.element.find('.window .content').append(wider);
-		this.cursor.css({ left: wider.width() });
+		var left = wider.width() + this.pager.view.left;
+		if(isNaN(topper) && left < 0){
+			this.pager.view.left -= left;
+			left = 0;
+			this.pager.element.css({ 'text-indent': this.pager.view.left });
+		} else if(isNaN(topper) && left > this.pager.element.width()){
+			this.pager.view.left -= left - this.pager.element.width();
+			left = this.pager.element.width();
+			this.pager.element.css({ 'text-indent': this.pager.view.left });
+		}
+		this.cursor.css({ left: left });
 		wider.remove();
 	},
 	setText : function(doc){
@@ -656,6 +666,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		length: 0
 	},
 	tabLen: 4,
+	longest: 0,
 
 	init : function(){},
 	fromString : function(data){
@@ -664,6 +675,10 @@ drdelambre.editor.Document = new drdelambre.class({
 			this.lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).replace(/\r\n|\r/g, "\n").split("\n");
 		else
 			this.lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
+		for(var ni = 0; ni < this.lines.length; ni++){
+			if(this.lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+				this.longest = this.lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+		}
 		this.fLines = Array(this.lines.length);
 		this.loaded = true;
 		drdelambre.editor.publish('/editor/doc/loaded', this);
@@ -697,11 +712,15 @@ drdelambre.editor.Document = new drdelambre.class({
 			curr = 0;
 		for(var ni = 0; ni < text.length;ni++){
 			lines[curr++] += text[ni];
+			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
 			lines.push('');
 		}
 		lines.pop();
 		pos.char = lines[lines.length - 1].length;
 		lines[lines.length - 1] += after;
+		if(lines[lines.length - 1].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+			this.longest = lines[lines.length - 1].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 		this.fLines = this.fLines.slice(0,pos.line).concat(Array(lines.length)).concat(this.fLines.slice(pos.line+1));
@@ -709,6 +728,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		pos.line = pos.line + lines.length - 1;
 		this.cursor = pos;
 
+		console.log('longest: ' + this.longest);
 		drdelambre.editor.publish('/editor/doc/change', [this, pos.line - lines.length + 1]);
 		return;
 	},
@@ -879,7 +899,10 @@ drdelambre.editor.Pager = new drdelambre.class({
 	view: {
 		start: 0,
 		end: 0,
-		lineHeight: 0
+		lineHeight: 0,
+		lineWidth: 0,
+		left: 0,
+		right: 0
 	},
 	gutter: null,
 
@@ -918,6 +941,12 @@ drdelambre.editor.Pager = new drdelambre.class({
 			guts[ni].innerHTML = ni - 1;
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
+		
+		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
+		this.element.append(neat);
+		this.view.lineWidth = neat[0].scrollWidth;
+		this.view.right = this.element.outerWidth() - this.view.lineWidth - 2*parseInt(this.element.css('padding-left'));
+		neat.remove();
 	},
 	updateLine : function(_doc, index){
 		if(
@@ -930,6 +959,12 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var start = index - this.view.start + 2
 		while(index < this.view.end + 2)
 			this.element.find('.line').eq(start++).html(this.doc.getFormattedLine(index++));
+
+		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
+		this.element.append(neat);
+		this.view.lineWidth = neat[0].scrollWidth - this.view.left;
+		this.view.right = this.element.outerWidth() - this.view.lineWidth - 2*parseInt(this.element.css('padding-left'));
+		neat.remove();
 	},
 	scroll : function(evt){
 		evt.stopPropagation();
@@ -974,7 +1009,15 @@ drdelambre.editor.Pager = new drdelambre.class({
 			this.moveDown();
 		}
 
+		var newLeft = this.view.left + x;
+		if(newLeft > 0)
+			newLeft = 0;
+		else if(newLeft < this.view.right)
+			newLeft = this.view.right;
+		this.view.left = newLeft;
+
 		elem.scrollTop = gut.scrollTop = newTop;
+		this.element.css({ 'text-indent': this.view.left });
 		drdelambre.editor.publish('/editor/scroll', newTop);
 	},
 	scrollTo : function(){
