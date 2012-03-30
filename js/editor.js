@@ -1103,7 +1103,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 			var bottomHit = 0;
 			if(this.doc.lines.length < this.doc.cursor.line + this.view.end)
 				bottomHit = this.doc.lines.length - this.view.end - 1;
-			this.view.start = bottomHit?bottomHit:this.doc.cursor.line;
+			this.view.start = bottomHit?bottomHit:this.doc.cursor.line - 1;
 			this.view.end += this.view.start;
 			
 			this.updateLine(this.doc, this.view.start);
