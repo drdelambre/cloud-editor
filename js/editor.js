@@ -137,6 +137,10 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		this.element = $(elem);
 		this.editors.push(new drdelambre.editor.Editor(this.element.find('.editor')));
 		drdelambre.editor.subscribe('/editor/caret', this.updateCount);
+		
+		var cursor = this.element.find('.footer .line-count span');
+		cursor.eq(0).bind('dblclick', this.openLine);
+		cursor.eq(1).bind('dblclick', this.openChar);
 	},
 	get editor(){ return this.editors[this.curr]; },
 	set editor(_index){},
@@ -144,7 +148,76 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		var count = this.element.find('.footer .line-count span');
 		count.eq(0).html(line.line + 1);
 		count.eq(1).html(line.char);
-	}
+	},
+	
+	openLine : function(evt){
+		var elem = $(evt.target).closest('span'),
+			inp = $('<input value="' + elem.html() + '">');
+		elem.css({ display: 'none' });
+		elem.before(inp);
+		inp.focus();
+		$(window).bind('keypress', this.keyCloseLine);
+		$(window).bind('mousedown', this.closeLine);
+	},
+	keyCloseLine : function(evt){
+		if(evt.which != 13) return;
+		this.closeLine();
+	},
+	closeLine : function(evt){
+		var elem = this.element.find('.footer .line-count input');
+		if(evt && $(evt.target).closest(elem).length)
+			return;
+		$(window).unbind('keypress', this.keyCloseLine);
+		$(window).unbind('mousedown', this.closeLine);
+		var line = parseInt(elem.val());
+		if(evt || isNaN(line) || line < 1){
+			elem.next('span').css({ display: '' });
+			elem.remove();
+			return;
+		}
+		elem.next('span').css({ display: '' });
+		elem.remove();
+		if(line > this.editor.doc.lines.length)
+			line = this.editor.doc.lines.length;
+		this.editor.doc.cursor = {
+			line: line - 1,
+			char: 0
+		};
+	},
+	openChar : function(evt){
+		var elem = $(evt.target).closest('span'),
+			inp = $('<input value="' + elem.html() + '">');
+		elem.css({ display: 'none' });
+		elem.before(inp);
+		inp.focus();
+		$(window).bind('keypress', this.keyCloseChar);
+		$(window).bind('mousedown', this.closeChar);
+	},
+	keyCloseChar : function(evt){
+		if(evt.which != 13) return;
+		this.closeChar();
+	},
+	closeChar : function(evt){
+		var elem = this.element.find('.footer .line-count input');
+		if(evt && $(evt.target).closest(elem).length)
+			return;
+		$(window).unbind('keypress', this.keyCloseChar);
+		$(window).unbind('mousedown', this.closeChar);
+		var charter = parseInt(elem.val());
+		if(evt || isNaN(charter) || charter < 0){
+			elem.next('span').css({ display: '' });
+			elem.remove();
+			return;
+		}
+		elem.next('span').css({ display: '' });
+		elem.remove();
+		if(charter > this.editor.doc.getLine(this.editor.doc.cursor.line||0).length)
+			charter = this.editor.doc.getLine(this.editor.doc.cursor.line||0).length;
+		this.editor.doc.cursor = {
+			line: this.editor.doc.cursor.line||0,
+			char: charter
+		};
+	},
 });
 
 /*
@@ -209,7 +282,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 		}
 	},
 	create : function(){
-		return $('<div class="editor shadow"><textarea></textarea><div class="gutter"></div><div class="window"><div class="line-marker" style="display:none;"><div class="cursor blink"><div class="marker"></div></div></div><div class="content"></div></div><div class="zoom"></div></div>');
+		return $('<div class="editor"><textarea></textarea><div class="gutter"></div><div class="window"><div class="line-marker" style="display:none;"><div class="select top"></div><div class="select middle"></div><div class="select bottom"></div><div class="cursor"><div class="marker"></div><div class="tag"></div></div></div><div class="content"></div><pre contenteditable=true></pre></div><div class="key-toggle"><img src="images/keyboard.png" /> keyboard</div></div>');
 	},
 	focus : function(evt){
 		var elem = $(evt.target).closest(this.element);
@@ -950,6 +1023,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 	},
 	updateLine : function(_doc, index){
 		if(
+			!_doc ||
 			_doc.__inst_id__ != this.doc.__inst_id__ ||
 			index < this.view.start - 2 ||
 			index > this.view.end + 2
@@ -1021,26 +1095,23 @@ drdelambre.editor.Pager = new drdelambre.class({
 		drdelambre.editor.publish('/editor/scroll', newTop);
 	},
 	scrollTo : function(){
-		if(this.doc.cursor.line <= this.view.start - 1){
-			var diff = (this.view.start - this.doc.cursor.line) * this.view.lineHeight;
-			this.scroll({
-				preventDefault:function(){},
-				stopPropagation: function(){},
-				originalEvent:{
-					wheelDeltaX:0,
-					wheelDeltaY:diff
-				}
-			});
-		} else if(this.doc.cursor.line >= this.view.end){
-			var diff = (this.view.end - this.doc.cursor.line - 1) * this.view.lineHeight;
-			this.scroll({
-				preventDefault:function(){},
-				stopPropagation: function(){},
-				originalEvent:{
-					wheelDeltaX:0,
-					wheelDeltaY:diff
-				}
-			});
+		if(
+			this.doc.cursor.line <= this.view.start - 1 ||
+			this.doc.cursor.line >= this.view.end
+		){
+			this.view.end -= this.view.start;
+			var bottomHit = 0;
+			if(this.doc.lines.length < this.doc.cursor.line + this.view.end)
+				bottomHit = this.doc.lines.length - this.view.end - 1;
+			this.view.start = bottomHit?bottomHit:this.doc.cursor.line;
+			this.view.end += this.view.start;
+			
+			this.updateLine(this.doc, this.view.start);
+			
+			var gut = this.gutter.find('.line');
+			for(var ni = 0; ni < gut.length; ni++)
+				gut.eq(ni).html(ni + this.view.start - 1);
+			return;
 		} else return;
 	},
 	getView : function(){

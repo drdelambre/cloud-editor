@@ -27,34 +27,8 @@ body {
 	background: #e0e0c8;
 }
 
-#debugger {
-	height: 6em;
-	position: absolute;
-	bottom: 0;
-	z-index: 100;
-	background: #fff;
-	width: 100%;
-	left: 0;
-	box-sizing: border-box;
-	padding: 0 2em;
-	margin: 0;
-	overflow: scroll;
-}
-
-#debugger:before {
-	content: 'debugger';
-	text-align: right;
-	background: #00bfff;
-	color: #fff;
-	font-family: mono;
-	text-align: right;
-	display: block;
-	width: 100%;
-	padding: 0 1em;
-	margin: 0;
-	margin-left: -1em;
-}
-
+/* =FileEditor
+*************************************************/
 .file-editor {
 	position: absolute;
 	top: 50%;
@@ -74,6 +48,7 @@ body {
 	float: right;
 	font-size: 0.7em;
 	color: #888;
+	padding-top: 0.2em;
 }
 
 .file-editor .footer .line-count span {
@@ -84,6 +59,29 @@ body {
 	text-align: right;
 }
 
+.file-editor .footer .line-count input {
+	font-family: inherit;
+	font-size: inherit;
+	text-align: right;
+	width: 2.2em;
+	background: rgba(0,0,0,0.05);
+	color: #000;
+	border: 1px solid #aaa;
+	border-radius: 0.4em;
+	margin: 0;
+	padding: 0;
+	margin-left: 0.2em;
+	margin-top: -1px;
+	outline: none;
+}
+
+.file-editor .footer .line-count input::-moz-selection,
+.file-editor .footer .line-count input::selection {
+	background: #ffb46c;
+}
+
+/* =Editor
+*************************************************/
 .editor {
 	border-radius: 0.5em;
 	position: relative;
@@ -359,34 +357,8 @@ body {
 	text-shadow: 0 0 2px rgba(170, 170, 170, 0);
 }
 
-/* =Default Theme Blur
+/* =MediaQueries!
 *************************************************/
-
-.editor .window .line.blur {
-	color: transparent;
-	text-shadow: 0 0 3px rgba(70,70,70,1)
-}
-
-.editor .blur span.folded {
-	color: rgba(170, 170, 170, 0);
-	text-shadow: 0 0 2px rgba(170, 170, 170, 1);
-}
-
-.editor .blur span.keyword {
-	color: rgba(0,0,0,0);
-	text-shadow: 0 0 2px rgba(0, 191, 255, 1);
-}
-
-.editor .blur span.string {
-	color: rgba(255, 0, 0, 0);
-	text-shadow: 0 0 2px rgba(255, 0, 0, 1);
-}
-
-.editor .blur span.comment {
-	color: rgba(170, 170, 170, 0);
-	text-shadow: 0 0 2px rgba(170, 170, 170, 1);
-}
-
 @media screen and (max-width: 640px){
 	.file-editor {
 		padding: 0;
