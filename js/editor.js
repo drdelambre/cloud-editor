@@ -710,251 +710,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 });
 
 /*
- *		class:    Document
- *		module:   drdelambre.editor
- *		author:   Alex Boatwright (drdelambre@gmail.com)
- *
- *		description:
- *			The document class reads in a file from a string or HTTP
- *			request and handles the serving of lines from that file.
- *
- */
-drdelambre.editor.Document = new drdelambre.class({
-	loaded: false,
-	lines: [],
-	fLines: [],
-	_cursor: {
-		line: 0,
-		char: 0
-	},
-	_selection: {
-		start: {
-			line: 0,
-			char: 0
-		},
-		end: {
-			line: 0,
-			char: 0
-		},
-		length: 0
-	},
-	tabLen: 4,
-	longest: 0,
-
-	init : function(){},
-	fromString : function(data){
-		if(typeof data !== "string") return;
-		if ("aaa".split(/a/).length == 0)
-			this.lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).replace(/\r\n|\r/g, "\n").split("\n");
-		else
-			this.lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
-		for(var ni = 0; ni < this.lines.length; ni++){
-			if(this.lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-				this.longest = this.lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-		}
-		this.fLines = Array(this.lines.length);
-		this.loaded = true;
-		drdelambre.editor.publish('/editor/doc/loaded', this);
-	},
-	fromURL : function(path){
-		this.loaded = false;
-		$.ajax({
-		  url: path,
-		  success: this.fromString
-		});
-	},
-
-	insert : function(text, pos){
-		if(!pos)
-			pos = {
-				line: this.cursor.line,
-				char: this.cursor.char
-			};
-		else if(pos.line < 0 || pos.line > this.lines.length - 1)
-			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
-		else if(pos.char > this.getLine(pos.line).length)
-			pos.char = this.getLine(pos.line).length;
-
-		var line = this.lines[pos.line],
-			before = line.substr(0,pos.char),
-			after = line.substr(pos.char);
-
-		text = text.replace(/\t/g,Array(this.tabLen+1).join(' ')).split('\n');
-
-		var lines = [before],
-			curr = 0;
-		for(var ni = 0; ni < text.length;ni++){
-			lines[curr++] += text[ni];
-			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-			lines.push('');
-		}
-		lines.pop();
-		pos.char = lines[lines.length - 1].length;
-		lines[lines.length - 1] += after;
-		if(lines[lines.length - 1].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-			this.longest = lines[lines.length - 1].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-
-		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
-		this.fLines = this.fLines.slice(0,pos.line).concat(Array(lines.length)).concat(this.fLines.slice(pos.line+1));
-
-		pos.line = pos.line + lines.length - 1;
-		this.cursor = pos;
-
-		console.log('longest: ' + this.longest);
-		drdelambre.editor.publish('/editor/doc/change', [this, pos.line - lines.length + 1]);
-		return;
-	},
-	remove : function(length, pos){
-		if(!pos)
-			pos = {
-				line: this.cursor.line,
-				char: this.cursor.char
-			};
-		else if(pos.line < 0 || pos.line > this.lines.length - 1)
-			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
-		else if(pos.char > this.lines[pos.line].length)
-			pos.char = this.lines[pos.line].length;
-			
-		var line = this.lines[pos.line].substr(0,pos.char),
-			after = this.lines[pos.line].substr(pos.char);
-		if(length < 0){
-			console.log('to did');
-			return;
-		}
-		while(length > 0){
-			if(length <= line.length){
-				this.lines[pos.line] = line.substr(0, line.length - length);
-				delete this.fLines[pos.line];
-				pos.char -= length;
-				break;
-			}
-
-			length -= line.length + 1;
-			this.lines.splice(pos.line, 1);
-			this.fLines.splice(pos.line, 1);
-			line = this.getLine(--pos.line);
-			pos.char = line.length;
-		}
-		this.lines[pos.line] += after;
-		this.cursor = pos;
-		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);
-	},
-	getLine : function(index){
-		if(index === 0) index = 0;
-		else if(!index) index = this._cursor.line;
-		else if(index < 0) throw new Error('drdelambre.editor.Document: getLine called with negative index');
-
-		if(index >= this.lines.length) return '';
-		return this.lines[index];
-	},
-	getFormattedLine : function(index){
-		if(index === 0) index = 0;
-		else if(!index) index = this._cursor.line;
-		else if(index < 0) throw new Error('drdelambre.editor.Document: getFormattedLine called with negative index');
-
-		if(index >= this.lines.length) return '';
-		if(!this.fLines[index])
-			return this.lines[index]
-				.replace(/&/g,'&amp;')
-				.replace(/</g,'&lt;')
-				.replace(/>/g,'&gt;');
-		return this.fLines[index];
-	},
-
-	clearSelection : function(){
-		if(!this._selection.length) return;
-		var pos = this._selection.start,
-			posE = this._selection.end,
-			len = posE.char,
-			it = posE.line;
-
-		while(it > pos.line)
-			len += this.lines[--it].length + 1;
-		len -= pos.char;
-
-		this.remove(len, posE);
-		this.selection = {
-			start: pos,
-			end: pos
-		};
-	},
-	getSelection : function(){
-		if(!this._selection.length) return '';
-		var start = this._selection.start,
-			end = this._selection.end,
-			it = start.line,
-			str = '',
-			off = this.lines[end.line].length - end.char;
-		while(it <= end.line)
-			str += this.lines[it++] + '\n';
-		return str.substr(0,str.length - off - 1).substr(start.char);
-	},
-
-	get cursor(){ return {line: this._cursor.line, char: this._cursor.char }; },
-	set cursor(obj){
-		if(	!obj ||
-			!obj.hasOwnProperty('line') ||
-			!obj.hasOwnProperty('char') ||
-			obj.line < 0 ||
-			obj.line > this.lines.length ||
-			obj.char > this.getLine(obj.line).length){
-			throw new Error('drdelambre.editor.Document: invalid cursor object\n\t{ line: ' + (obj.line?obj.line:'undefined') + ', char: ' + (obj.char?obj.char:'undefined') + ' }');
-		}
-
-		this._cursor.line = obj.line;
-		this._cursor.char = obj.char;
-		drdelambre.editor.publish('/editor/caret', this._cursor);
-	},
-	
-	get selection(){
-		return {
-			start: this._selection.start,
-			end: this._selection.end,
-			length: this._selection.length
-		}
-	},
-	set selection(obj){
-		if(	!obj ||
-			!obj.hasOwnProperty('start') ||
-			!obj.start.hasOwnProperty('line') ||
-			!obj.start.hasOwnProperty('char') ||
-			obj.start.line < 0 ||
-			obj.start.char < 0 ||
-			obj.start.line > this.lines.length ||
-			obj.start.char > this.getLine(obj.start.line).length	)
-			throw new Error('drdelambre.editor.Document: invalid selection set');
-		if(	!obj.hasOwnProperty('end') ||
-			!obj.end.hasOwnProperty('line') ||
-			!obj.end.hasOwnProperty('char') ||
-			obj.end.line < 0 ||
-			obj.end.char < 0 ||
-			obj.end.line > this.lines.length ||
-			obj.end.char > this.getLine(obj.end.line).length	)
-			obj.end = {
-				line: obj.start.line,
-				char: obj.start.char
-			};
-
-		var len = 0,
-			it = obj.end.line;
-		if(obj.start.line == obj.end.line)
-			len = obj.end.char - obj.start.char;
-		else {
-			len += obj.end.char;
-			while(--it >= obj.start.line)
-				len += this.getLine(it).length;
-			len -= obj.start.char;
-		}
-		
-		obj.length = len;
-
-		this._selection = obj;
-		drdelambre.editor.publish('/editor/selection', this);
-	}
-});
-
-/*
  *		class:    Pager
  *		module:   drdelambre.editor
  *		author:   Alex Boatwright (drdelambre@gmail.com)
@@ -1198,3 +953,278 @@ drdelambre.editor.Pager = new drdelambre.class({
 		}
 	}
 });
+
+/*
+ *		class:    Document
+ *		module:   drdelambre.editor
+ *		author:   Alex Boatwright (drdelambre@gmail.com)
+ *
+ *		description:
+ *			The document class reads in a file from a string or HTTP
+ *			request and handles the serving of lines from that file.
+ *
+ */
+drdelambre.editor.Document = new drdelambre.class({
+	loaded: false,
+	lines: [],
+	fLines: [],
+	_cursor: {
+		line: 0,
+		char: 0
+	},
+	_selection: {
+		start: {
+			line: 0,
+			char: 0
+		},
+		end: {
+			line: 0,
+			char: 0
+		},
+		length: 0
+	},
+	tabLen: 4,
+	longest: 0,
+
+	init : function(){},
+	fromString : function(data){
+		if(typeof data !== "string") return;
+		var lines;
+		if ("aaa".split(/a/).length == 0)
+			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).replace(/\r\n|\r/g, "\n").split("\n");
+		else
+			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
+		for(var ni = 0; ni < lines.length; ni++){
+			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+				this.longest = lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+			this.lines.push(new drdelambre.editor.Line(lines[ni]));
+		}
+		this.loaded = true;
+		drdelambre.editor.publish('/editor/doc/loaded', this);
+	},
+	fromURL : function(path){
+		this.loaded = false;
+		$.ajax({
+		  url: path,
+		  success: this.fromString
+		});
+	},
+
+	insert : function(text, pos){
+		if(!pos)
+			pos = {
+				line: this.cursor.line,
+				char: this.cursor.char
+			};
+		else if(pos.line < 0 || pos.line > this.lines.length - 1)
+			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
+		else if(pos.char > this.getLine(pos.line).length)
+			pos.char = this.getLine(pos.line).length;
+
+		var line = this.lines[pos.line].text,
+			before = new drdelambre.editor.Line(line.substr(0,pos.char)),
+			after = new drdelambre.editor.Line(line.substr(pos.char));
+
+		text = text.replace(/\t/g,Array(this.tabLen+1).join(' ')).split('\n');
+
+		var lines = [before],
+			curr = 0;
+		for(var ni = 0; ni < text.length;ni++){
+			lines[curr++].text += text[ni];
+			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+			lines.push(new drdelambre.editor.Line(''));
+		}
+		lines.pop();
+		pos.char = lines[lines.length - 1].text.length;
+		lines[lines.length - 1].text += after.text;
+		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
+			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+
+		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
+
+		pos.line = pos.line + lines.length - 1;
+		this.cursor = pos;
+
+		drdelambre.editor.publish('/editor/doc/change', [this, pos.line - lines.length + 1]);
+		return;
+	},
+	remove : function(length, pos){
+		if(!pos)
+			pos = {
+				line: this.cursor.line,
+				char: this.cursor.char
+			};
+		else if(pos.line < 0 || pos.line > this.lines.length - 1)
+			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
+		else if(pos.char > this.lines[pos.line].length)
+			pos.char = this.lines[pos.line].length;
+			
+		var line = this.lines[pos.line].text.substr(0,pos.char),
+			after = this.lines[pos.line].text.substr(pos.char);
+		if(length < 0){
+			console.log('to did');
+			return;
+		}
+		while(length > 0){
+			if(length <= line.length){
+				this.lines[pos.line].text = line.substr(0, line.length - length);
+				pos.char -= length;
+				break;
+			}
+
+			length -= line.length + 1;
+			this.lines.splice(pos.line, 1);
+			line = this.getLine(--pos.line);
+			pos.char = line.length;
+		}
+		this.lines[pos.line].text += after;
+		this.cursor = pos;
+		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);
+	},
+	getLine : function(index){
+		if(index === 0) index = 0;
+		else if(!index) index = this._cursor.line;
+		else if(index < 0) throw new Error('drdelambre.editor.Document: getLine called with negative index');
+
+		if(index >= this.lines.length) return '';
+		return this.lines[index].text;
+	},
+	getFormattedLine : function(index){
+		if(index === 0) index = 0;
+		else if(!index) index = this._cursor.line;
+		else if(index < 0) throw new Error('drdelambre.editor.Document: getFormattedLine called with negative index');
+
+		if(index >= this.lines.length) return '';
+		return this.lines[index].formatted;
+	},
+
+	clearSelection : function(){
+		if(!this._selection.length) return;
+		var pos = this._selection.start,
+			posE = this._selection.end,
+			len = posE.char,
+			it = posE.line;
+
+		while(it > pos.line)
+			len += this.lines[--it].text.length + 1;
+		len -= pos.char;
+
+		this.remove(len, posE);
+		this.selection = {
+			start: pos,
+			end: pos
+		};
+	},
+	getSelection : function(){
+		if(!this._selection.length) return '';
+		var start = this._selection.start,
+			end = this._selection.end,
+			it = start.line,
+			str = '',
+			off = this.lines[end.line].length - end.char;
+		while(it <= end.line)
+			str += this.lines[it++] + '\n';
+		return str.substr(0,str.length - off - 1).substr(start.char);
+	},
+
+	get cursor(){ return {line: this._cursor.line, char: this._cursor.char }; },
+	set cursor(obj){
+		if(	!obj ||
+			!obj.hasOwnProperty('line') ||
+			!obj.hasOwnProperty('char') ||
+			obj.line < 0 ||
+			obj.line > this.lines.length ||
+			obj.char > this.getLine(obj.line).length){
+			throw new Error('drdelambre.editor.Document: invalid cursor object\n\t{ line: ' + (obj.line?obj.line:'undefined') + ', char: ' + (obj.char?obj.char:'undefined') + ' }');
+		}
+
+		this._cursor.line = obj.line;
+		this._cursor.char = obj.char;
+		drdelambre.editor.publish('/editor/caret', this._cursor);
+	},
+	
+	get selection(){
+		return {
+			start: this._selection.start,
+			end: this._selection.end,
+			length: this._selection.length
+		}
+	},
+	set selection(obj){
+		if(	!obj ||
+			!obj.hasOwnProperty('start') ||
+			!obj.start.hasOwnProperty('line') ||
+			!obj.start.hasOwnProperty('char') ||
+			obj.start.line < 0 ||
+			obj.start.char < 0 ||
+			obj.start.line > this.lines.length ||
+			obj.start.char > this.getLine(obj.start.line).length	)
+			throw new Error('drdelambre.editor.Document: invalid selection set');
+		if(	!obj.hasOwnProperty('end') ||
+			!obj.end.hasOwnProperty('line') ||
+			!obj.end.hasOwnProperty('char') ||
+			obj.end.line < 0 ||
+			obj.end.char < 0 ||
+			obj.end.line > this.lines.length ||
+			obj.end.char > this.getLine(obj.end.line).length	)
+			obj.end = {
+				line: obj.start.line,
+				char: obj.start.char
+			};
+
+		var len = 0,
+			it = obj.end.line;
+		if(obj.start.line == obj.end.line)
+			len = obj.end.char - obj.start.char;
+		else {
+			len += obj.end.char;
+			while(--it >= obj.start.line)
+				len += this.getLine(it).length;
+			len -= obj.start.char;
+		}
+		
+		obj.length = len;
+
+		this._selection = obj;
+		drdelambre.editor.publish('/editor/selection', this);
+	}
+});
+
+/*
+ *		class:    Line
+ *		module:   drdelambre.editor
+ *		author:   Alex Boatwright (drdelambre@gmail.com)
+ *
+ *		description:
+ *			based on CodeMirror's lexical parser, this abstraction
+ *			makes lines easier to work with
+ *
+ */
+drdelambre.editor.Line = new drdelambre.class({	
+	_text : '',
+	_formattedText: null,
+	_state: null,
+
+	init : function(text, state){
+		this.text = text;
+	},
+	
+	get text(){
+		return this._text;
+	},
+	set text(string){
+		this._text = string;
+		this._formattedText = null;
+	},
+	get formatted(){
+		if(!this._formattedText)
+			return this.text
+				.replace(/&/g,'&amp;')
+				.replace(/</g,'&lt;')
+				.replace(/>/g,'&gt;');
+		return this._formattedText;
+	}
+});
+
+
