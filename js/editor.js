@@ -1,13 +1,85 @@
-var defaultTheme = {
-	window: '#ffffff',
-	text: '#000000',
-	cursor: '#aaa',
+var drdelambre = drdelambre || {
+	cache: {},
+	debug: true,
+	debugTouch: false,
+	inst_id: -1,
 
-	folded: '#aaa',
-	keyword: '#00bfff',
-	string: '#f00',
-	comment: '#aaa'
+	publish : function(topic, args){
+		if(Object.prototype.toString.apply(args) !== '[object Array]')
+			args = [args];
+	
+		var cache = drdelambre.cache;
+		for(var t in cache){
+			if(topic.match(new RegExp(t)))
+				$.each(cache[t], function(){
+					this.apply($, args || []);
+				});
+		}
+	},
+	subscribe : function(topic, callback){
+		var cache = drdelambre.cache;
+		topic = '^' + topic.replace(/\*/,'.*');
+		if(!cache[topic])
+			cache[topic] = [];
+		cache[topic].push(callback);
+		return [topic, callback];
+	},
+	unsubscribe : function(handle){
+		var cache = drdelambre.cache,
+			t = handle[0];
+		cache[t] && $.each(cache[t], function(idx){
+			if(this == handle[1])
+				cache[t].splice(idx, 1);
+		});
+	},
+	class : function(proto){
+		var id = ++drdelambre.inst_id;
+		var fun = function(){
+			if(!(this instanceof arguments.callee))
+				throw new Error('drdelambre.class: not called as a constructor (try adding "new")');
+			for(var member in proto){
+				if(typeof proto[member] !== 'function')
+					this[member] = proto[member];
+				else
+					this[member] = $.proxy(proto[member],this);
+			}
+			this['__inst_id__'] = id;
+			if(this.init) this.init.apply(this,arguments);
+		};
+
+		fun.prototype = proto || {};
+		return fun;
+	},
+	extend : function() {
+		var options, name, src, copy, copyIsArray, clone,
+			target = arguments[0] || {},
+			length = arguments.length;
+	
+		for(var i = 1; i < length; i++ ){
+			if((options = arguments[ i ]) != null){
+				for(name in options){
+					src = target[ name ];
+					copy = options[ name ];
+	
+					if(target === copy)
+						continue;
+	
+					if(copy !== undefined)
+						target[name] = copy;
+				}
+			}
+		}
+		return target;
+	}
 };
+
+drdelambre.extend(drdelambre,{
+	get isTouch() {
+		if(drdelambre.debugTouch)
+			return true;
+		return !!('ontouchend' in document) ? true : false;
+	}
+});
 
 // sometimes i do crazy things with namespaces, here's the place for that
 drdelambre.editor = drdelambre.editor || {
@@ -93,12 +165,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 	cursor: null,
 	tabLen: 4,
 	hasFocus: false,
-
-	touchTracker: {
-		cursor: -1,
-		select: -1,
-		scroll: -1
-	},
+	showKeys: false,
 
 	init : function(elem,doc){
 		this.element = $(elem);
@@ -121,16 +188,22 @@ drdelambre.editor.Editor = new drdelambre.class({
 		drdelambre.editor.subscribe('/editor/caret', this.moveCursor);
 		drdelambre.editor.subscribe('/editor/scroll', this.moveCursor);
 		drdelambre.editor.subscribe('/editor/selection', this.setText);
-		
-		this.element.children('textarea').bind('input', this.input);
+
 		$(window).bind('mousedown', this.focus);
 
 		if(drdelambre.isTouch){
 			this.element.addClass('touch');
+
 			this.element.find('.key-toggle').bind('click', this.toggleKeyboard);
-			this.element.find('textarea').bind('blur', this.toggleKeyboard);
+			this.element.children('textarea').bind('input', this.input);
 			this.element.bind('touchstart', this.startTouch);
+			this.element.find('pre').bind('mouseup', $.proxy(function(evt){
+				this.element.find('pre').html('');
+				if(this.showKeys) this.element.find('textarea').focus();
+			},this));
+			$(window).bind('keydown', this.keydown);
 		} else {
+			this.element.children('textarea').bind('input', this.input);
 			this.element.bind('mousewheel DOMMouseScroll', this.pager.scroll);
 			this.element.bind('mousedown', this.start);
 		}
@@ -144,27 +217,26 @@ drdelambre.editor.Editor = new drdelambre.class({
 			$(window).bind('cut', this.cut);
 			$(window).bind('paste', this.paste);
 			$(window).bind('keydown', this.keydown);
-			$(window).bind('keyup', this.keyup);
 			this.hasFocus = true;
 		} else if(!elem.length){
 			$(window).unbind('cut', this.cut);
 			$(window).unbind('paste', this.paste);
 			$(window).unbind('keydown', this.keydown);
-			$(window).unbind('keyup', this.keyup);
 			this.element.find('.line-marker').css({ display: 'none' });
 			this.hasFocus = false;
+			if(drdelambre.isTouch && this.showKeys)
+				this.toggleKeyboard();
 		}
 	},
 	toggleKeyboard : function(evt){
-		var toggle = this.element.find('.key-toggle');
-		if(toggle.is('.hover')){
-			if(!$(evt.target).closest('textarea').length)
-				this.element.find('textarea').blur();
-			else
-				toggle.removeClass('hover');
+		if(this.showKeys){
+			this.showKeys = false;
+			this.element.find('.key-toggle').removeClass('hover');
+			this.element.find('textarea').blur();
 		} else {
+			this.showKeys = true;
+			this.element.find('.key-toggle').addClass('hover');
 			this.element.find('textarea').focus();
-			toggle.addClass('hover');
 		}
 	},
 
@@ -221,7 +293,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	////////////////////////////////////////////////////////
 	keydown : function(evt){
-		this.cursor.removeClass('blink');
 		switch(evt.which){
 			case 9:			//tab
 				evt.preventDefault();
@@ -239,7 +310,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 				break;
 			case 8:			//backspace
 				if(!evt.shiftKey){
-					console.log('backspace');
 					if(this.doc.selection.length)
 						this.doc.clearSelection();
 					else
@@ -247,7 +317,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 					break;
 				}
 			case 46:		//delete
-				console.log('delete')
+				console.log('delete not implemented');
 				break;
 			case 37:		//left
 			case 38:		//up
@@ -320,9 +390,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 			default:
 				return true;
 		}
-	},
-	keyup : function(evt){
-		this.cursor.addClass('blink');
 	},
 	input : function(evt){
 		this.doc.clearSelection();
@@ -418,7 +485,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 		text.selectionEnd = text.value.length;
 	},
 
-	//functions for dragging the cursor
 	start : function(evt){
 		evt.preventDefault();
 		var pos = this.pixelToText(evt.pageX, evt.pageY);
@@ -482,159 +548,69 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 
 	startTouch : function(evt){
-		if($(evt.target).closest('.key-toggle').length) return;
-		evt.preventDefault();
-		
-		var touch = evt.originalEvent.changedTouches[0] || evt.originalEvent.touches[0];
-
-		if($(evt.target).closest('.s-button').length){
-			this.touchTracker.select = touch.identifier;
-			this.element.find('.s-button').addClass('hover');
-		} else if($(evt.target).closest('.cursor').length){
-			if(this.touchTracker.cursor == -1 && this.touchTracker.scroll == -1){
-				$(window).bind('touchmove', this.moveTouch);
-				$(window).bind('touchend', this.killTouch);
-			}
-			this.touchTracker.cursor = touch.identifier;
-		} else {
-			if(this.touchTracker.cursor == - 1 && this.touchTracker.scroll == -1){
-				$(window).bind('touchmove', this.moveTouch);
-				$(window).bind('touchend', this.killTouch);
-			}
-			this.touchTracker.scroll = touch.identifier;
-			this.scrollIndex = { x: touch.pageX, y: touch.pageY };
+		if($(evt.target).closest('.key-toggle').length){
+			return;
 		}
+
+		var pre = this.element.find('pre').html(this.pager.getView().replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;')),
+			touch = evt.originalEvent.changedTouches[0] || evt.originalEvent.touches[0];
+		this.scrollIndex = {
+			x: touch.pageX,
+			y: touch.pageY,
+			touch: touch.identifier,
+			events: [],
+			timer: null
+		};
+		
+		$(window).bind('touchmove', this.moveTouch);
+		$(window).bind('touchend', this.killTouch);
 	},
 	moveTouch : function(evt){
 		evt.preventDefault();
-		if(!this.touchTracker.touches)
-			this.touchTracker.touches = [];
-		var touch = evt.originalEvent.touches;
-		this.touchTracker.touches.push(touch);
-		if(this.touchTracker.timer) return;
+		this.scrollIndex.events.push(evt.originalEvent.touches);
 
-		if(evt.originalEvent.changedTouches[0].identifier == this.touchTracker.cursor){
-			this.element.find('.line').addClass('blur');
-			this.element.find('.s-button').width(this.element.find('.gutter').width());
-			this.element.find('textarea').blur();
-		}
-
+		if(this.scrollIndex.timer)
+			return;
+		
 		var throttle = $.proxy(function(){
-			if(!this.touchTracker.touches) return;
-			var cleanTouch = [];
-			for(var ni = 0; ni < this.touchTracker.touches.length; ni++){
-				for(var no = 0; no < this.touchTracker.touches[ni].length; no++)
-					cleanTouch[this.touchTracker.touches[ni][no].identifier] = this.touchTracker.touches[ni][no];
-			}
-			this.touchTracker.touches = null;
-			
-			for(var ni in cleanTouch){
-				if(ni == this.touchTracker.scroll){
-					this.pager.scroll({
-						preventDefault:function(){},
-						stopPropagation: function(){},
-						originalEvent:{
-							wheelDeltaX:cleanTouch[ni].pageX - this.scrollIndex.x,
-							wheelDeltaY:cleanTouch[ni].pageY - this.scrollIndex.y
-						}
-					});
-					this.scrollIndex = { x: cleanTouch[ni].pageX, y: cleanTouch[ni].pageY };
-				} else if(ni == this.touchTracker.cursor){
-					var pos = this.pixelToText(cleanTouch[ni].pageX, cleanTouch[ni].pageY);
-					if(this.touchTracker.select != -1){
-						if(this.doc.selection.length){
-							if(this.doc.cursor.line == this.doc.selection.start.line && this.doc.cursor.char == this.doc.selection.start.char){
-								if(pos.line > this.doc.selection.end.line || (pos.line == this.doc.selection.end.line && pos.char > this.doc.selection.end.char))
-									this.doc.selection = {
-										start: this.doc.selection.end,
-										end: pos
-									};
-								else
-									this.doc.selection = {
-										start: pos,
-										end: this.doc.selection.end
-									};
-							} else {
-								if(pos.line > this.doc.selection.start.line || (pos.line == this.doc.selection.start.line && pos.char > this.doc.selection.start.char))
-									this.doc.selection = {
-										start: this.doc.selection.start,
-										end: pos
-									};
-								else
-									this.doc.selection = {
-										start: pos,
-										end: this.doc.selection.start
-									};
-							}
-						}
-						else {
-							if(pos.line < this.doc.cursor.line || (pos.line == this.doc.cursor.line && pos.char < this.doc.cursor.char))
-								this.doc.selection = {
-									start: pos,
-									end: this.doc.cursor
-								};
-							else
-								this.doc.selection = {
-									start: this.doc.cursor,
-									end: pos
-								};
-						}
-					} else {
-						this.doc.selection = {
-							start: pos,
-							end: pos
-						};
+			var cleanTouch;
+			for(var ni = this.scrollIndex.events.length; ni != 0;){
+				for(var no = this.scrollIndex.events[--ni].length; no!=0;){
+					if(this.scrollIndex.events[ni][--no].identifier == this.scrollIndex.touch){
+						cleanTouch = this.scrollIndex.events[ni][no];
+						break;
 					}
-					
-					this.doc.cursor = pos;
 				}
+				if(cleanTouch) break;
 			}
+			this.scrollIndex.events = [];
+			if(!cleanTouch) return;
+			this.pager.scroll({
+				preventDefault:function(){},
+				stopPropagation: function(){},
+				originalEvent:{
+					wheelDeltaX:cleanTouch.pageX - this.scrollIndex.x,
+					wheelDeltaY:cleanTouch.pageY - this.scrollIndex.y
+				}
+			});
+			this.scrollIndex.x = cleanTouch.pageX;
+			this.scrollIndex.y = cleanTouch.pageY;
+			this.element.find('pre').css({ top: 0-this.pager.element.scrollTop()+(2*this.pager.view.lineHeight) });
 		}, this);
-
-		this.touchTracker.timer = setInterval(throttle, 50);
+		this.element.find('pre').html('');
+		this.scrollIndex.timer = setInterval(throttle,50);
 		throttle();
 	},
 	killTouch : function(evt){
-		evt.preventDefault();
+		$(window).unbind('touchmove', this.moveTouch);
+		$(window).unbind('touchend', this.killTouch);
 		var touch = evt.originalEvent.changedTouches[0];
 
-		if(touch.identifier == this.touchTracker.select){
-			this.touchTracker.select = -1;
-			this.element.find('.s-button').removeClass('hover');
-		} else if(touch.identifier == this.touchTracker.scroll){
-			this.touchTracker.scroll = -1;
-		} else if(touch.identifier == this.touchTracker.cursor){
-			this.touchTracker.cursor = -1;
-			this.element.find('.s-button').width(0);
-			this.element.find('.line').removeClass('blur');
-			if(!this.doc.selection.length)
-				this.element.find('textarea').focus();
-		}
-
-		if(this.touchTracker.cursor == - 1 && this.touchTracker.scroll == -1){
-			if(this.touchTracker.timer){		//we moved
-				clearInterval(this.touchTracker.timer);
-				this.touchTracker.timer = null;
-				if(this.doc.selection.length){
-					this.element.find('.m-button').width(this.element.find('.gutter').width());
-				}
-			} else {							//just a click
-				var pos = this.pixelToText(touch.pageX, touch.pageY);
-				this.doc.selection = {
-					start: pos,
-					end: pos
-				};
-				this.element.find('.m-button').width(0);
-				this.doc.cursor = pos;
-				this.element.find('textarea').focus();
-			}
-			var text = this.element.find('textarea').val(this.doc.getSelection())[0];
-			text.selectionStart = 0;
-			text.selectionEnd = text.value.length;
-
-			$(window).unbind('touchmove', this.moveTouch);
-			$(window).unbind('touchend', this.killTouch);
-		}
+		if(this.scrollIndex.timer)		// we moved
+			clearInterval(this.scrollIndex.timer);
+		else
+			this.doc.cursor = this.pixelToText(touch.pageX, touch.pageY);
+		delete this.scrollIndex;
 	},
 	
 	cut : function(evt){
@@ -1023,6 +999,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 				}
 			});
 		} else return;
+	},
+	getView : function(){
+		var it = this.view.start,
+			str = '';
+		while(it <= this.view.end)
+			str += this.doc.getLine(it++) + '\n';
+		return str;
 	},
 
 	moveUp : function(){

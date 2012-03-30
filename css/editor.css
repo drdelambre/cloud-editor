@@ -118,6 +118,29 @@ body {
 	left: -1000px;
 }
 
+.editor pre {
+	display: none;
+}
+
+.editor.touch pre {
+	display: block;
+	position: absolute;
+	margin: 0;
+	border-radius: 0 0.5em 0.5em 0;
+	box-sizing: border-box;
+	left: 0;
+	top: 0;
+	padding-left: 0.75em;
+	z-index: 20;
+	height: 100%;
+	min-width: 100%;
+	font-size: 1em;
+	font-family: inherit;
+	line-height: 1.3em;
+	color: #fff;
+	opacity: 0;
+}
+
 .editor .gutter {
 	position: relative;
 	height: 100%;
@@ -175,94 +198,6 @@ body {
 	border-color: transparent transparent transparent #aaa;
 }
 
-.editor .s-button {
-	position: absolute;
-	width: 2.6em;
-	height: 100%;
-	box-shadow: 1px 0 3px rgba(0,0,0,0.2);
-	left: 0;
-	background: #55b0c2;
-	color: #fff;
-	top: 0;
-	z-index: 50;
-	overflow: hidden;
-	border-radius: 0.5em 0 0 0.5em;
-	width:0;
-	
-	-webkit-transition: width 0.5s;
-	   -moz-transition: width 0.5s;
-			transition: width 0.5s;
-}
-
-.editor .s-button.hover {
-	background: #666;
-	color: #fff;
-	box-shadow: 1px 0 3px rgba(0,0,0,0.2);
-}
-
-.editor .s-button .text {
-	position: absolute;
-	height: 1em;
-	top:  50%;
-	margin-top: -0.5em;
-	-webkit-transform: rotate(90deg);
-	   -moz-transform: rotate(90deg);
-	        transform: rotate(90deg);
-	font-size: 2em;
-	margin-left: -0.8em;
-}
-
-.editor .m-button {
-	position: absolute;
-	width: 2.6em;
-	height: 100%;
-	box-shadow: 1px 0 3px rgba(0,0,0,0.2);
-	left: 0;
-	background: #55b0c2;
-	color: #fff;
-	top: 0;
-	z-index: 50;
-	overflow: hidden;
-	border-radius: 0.5em 0 0 0.5em;
-	width: 0;
-	
-	-webkit-transition: width 0.5s;
-	   -moz-transition: width 0.5s;
-			transition: width 0.5s;
-}
-
-.editor .m-button .button {
-	height: 33.333333333333333%;
-	position: relative;
-	text-align: center;
-	border-bottom: 1px solid rgba(0,0,0,0.2);
-}
-
-.editor .m-button .button:nth-child(1) {
-	border-radius: 0.5em 0 0 0;
-}
-
-.editor .m-button .button:nth-child(3) {
-	border-radius: 0 0 0 0.5em;
-	border: none;
-}
-
-.editor .m-button .text {
-	position: absolute;
-	font-size: 2em;
-	width: 3em;
-	top: 50%;
-	margin-top: -0.5em;
-	-webkit-transform: rotate(90deg);
-	margin-left: -0.8em;
-}
-
-.editor .m-button .button.hover {
-	color: #fff;
-	background: #666;
-}
-
-
 .editor .window {
 	overflow: hidden;
 	position: relative;
@@ -272,7 +207,7 @@ body {
 .editor .window .line-marker {
 	position: absolute;
 	width: 100%;
-	background: rgba(0,0,0,0.03);
+	background: rgba(0,0,0,0.05);
 	height: 1.3em;
 	top: 0;
 	outline: none;
@@ -351,10 +286,6 @@ body {
 	color: #000;
 }
 
-.editor .window .line.highlight {
-	box-shadow: 0 0 10px #f00;
-}
-
 .editor .content span.folded {
 	padding: 0 0.2em;
 	letter-spacing:-0.1em;
@@ -380,58 +311,9 @@ body {
 }
 
 .editor.touch .key-toggle { display: block; }
+
 .editor.touch .key-toggle.hover {
 	opacity: 1;
-}
-
-.editor .zoom {
-	height: 1.3em;
-	font-size: 3.5em;
-	overflow: hidden;
-	position: absolute;
-	bottom: 0.3em;
-	box-sizing: border-box;
-	padding: 0 0.5em;
-	z-index: 20;
-	width: 7em;
-	left: 50%;
-	margin-left: -3.16em;
-	background: #fff;
-	border-radius: 0.25em;
-	box-shadow: 0 0 8px rgba(0,0,0,0.3);
-	opacity: 0;
-	white-space: nowrap;
-	
-	-webkit-transition: opacity 1s;
-}
-
-.editor .zoom:after {
-	content: '';
-	position: absolute;
-	height: 1.3em;
-	width: 0.13em;
-	top: 0;
-	left: 50%;
-	margin-left: -0.075em;
-	background: #aaa;
-}
-
-.editor .zoom.show {
-	opacity: 1
-}
-
-.editor .zoom .line {
-	margin-left: -0.5em;
-	white-space: nowrap
-}
-
-.editor .textforcopy {
-	position: absolute;
-	top: 0;
-	width: 100%;
-	text-align: center;
-	height: 1em;
-	z-index: 100;
 }
 
 /* =Default Theme
