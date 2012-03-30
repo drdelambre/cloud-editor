@@ -246,16 +246,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.element = this.create();
 		this.doc = doc || new drdelambre.editor.Document();
 		this.pager = new drdelambre.editor.Pager(this.element.find('.content'), this.doc, this.element.find('.gutter'));
-		this.muncher = $('<span></span>').css({
-			position: 'absolute',
-			top: 0,
-			left: -10000,
-			visibility: 'hidden',
-			margin: 0,
-			padding: 0,
-			'white-space':'pre',
-		});
-		this.element.append(this.muncher);
 		this.cursor = this.element.find('.cursor');
 
 		drdelambre.editor.subscribe('/editor/caret', this.moveCursor);
@@ -313,58 +303,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 		}
 	},
 
-	// these two functions need to moved into the pager ////
-	pixelToText : function(pageX, pageY){
-		var line = this.element.find('.content .line'),
-			count = 2;
-		while(count < line.length && pageY > line.eq(count).offset().top){
-			count++;
-		}
-
-		count = count - 3 + this.pager.view.start;
-
-		if(count > this.doc.lines.length - 1)
-			count = this.doc.lines.length - 1
-		else if(count > this.pager.view.end)
-			count = this.pager.view.end;
-
-		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - parseInt(this.element.find('.content').css('text-indent')),
-			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
-
-		mun.innerHTML = Array(rstr.length + 1).join('x');
-		var test = mun.offsetWidth;
-		if(left > test)
-			return { line: count, char: rstr.length };
-
-		while(rstr.length){
-			if(rstr.length == 1){
-				mstr = rstr;
-				rstr = '';
-			} else {
-				mid = (rstr.length/2)&~0;
-				mstr = rstr.substr(0,mid);
-				rstr = rstr.substr(mid);
-			}
-
-			mun.innerHTML = Array((lstr + mstr).length+1).join('x');
-			if(rstr.length){
-				if(mun.offsetWidth > left)
-					rstr = mstr;
-				else
-					lstr += mstr;
-			}
-		}
-		return { line: count, char: lstr.length };
-	},
-	textToPixel : function(cursor){
-		var top = (cursor.line - this.pager.view.start) * this.pager.view.lineHeight;
-		this.muncher[0].innerHTML = Array(cursor.char + 1).join('x');
-		return {
-			top: top,
-			left: this.muncher[0].offsetWidth + this.pager.view.left + parseInt(this.pager.element.css('padding-left'))
-		};
-	},
-	////////////////////////////////////////////////////////
 	keydown : function(evt){
 		switch(evt.which){
 			case 9:			//tab
@@ -488,8 +426,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 			docsel = this.doc.selection;
 		if(docsel.length){
 			var line = docsel.end.line - docsel.start.line,
-				start = this.textToPixel(docsel.start),
-				end = this.textToPixel(docsel.end);
+				start = this.pager.textToPixel(docsel.start),
+				end = this.pager.textToPixel(docsel.end);
 
 			sels.eq(2).css({
 				display: '',
@@ -570,7 +508,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 
 	start : function(evt){
 		evt.preventDefault();
-		var pos = this.pixelToText(evt.pageX, evt.pageY);
+		var pos = this.pager.pixelToText(evt.pageX, evt.pageY);
 		this.doc.selection = {
 			start: pos,
 			end: pos
@@ -582,7 +520,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	move : function(evt){
 		evt.preventDefault();
-		var pos = this.pixelToText(evt.pageX, evt.pageY);
+		var pos = this.pager.pixelToText(evt.pageX, evt.pageY);
 		if(this.doc.selection.length){
 			if(this.doc.cursor.line == this.doc.selection.start.line && this.doc.cursor.char == this.doc.selection.start.char){
 				if(pos.line > this.doc.selection.end.line || (pos.line == this.doc.selection.end.line && pos.char > this.doc.selection.end.char))
@@ -692,7 +630,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 		if(this.scrollIndex.timer)		// we moved
 			clearInterval(this.scrollIndex.timer);
 		else
-			this.doc.cursor = this.pixelToText(touch.pageX, touch.pageY);
+			this.doc.cursor = this.pager.pixelToText(touch.pageX, touch.pageY);
 		delete this.scrollIndex;
 	},
 	
@@ -722,7 +660,8 @@ drdelambre.editor.Editor = new drdelambre.class({
  *
  */
 drdelambre.editor.Pager = new drdelambre.class({
-	element : null,
+	element: null,
+	muncher: null,
 	doc: null,
 	view: {
 		start: 0,
@@ -738,6 +677,17 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.element = $(elem);
 		if(!this.element.length)
 			throw new Error('drdelambre.editor.Pager: initialized without a container element');
+
+		this.muncher = $('<span></span>').css({
+			position: 'absolute',
+			top: 0,
+			left: -10000,
+			visibility: 'hidden',
+			margin: 0,
+			padding: 0,
+			'white-space':'pre',
+		});
+		this.element.append(this.muncher);
 
 		this.gutter = $(gutter);
 		var spacer = $('<div class="line"></div>');
@@ -795,6 +745,58 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.view.right = this.element.outerWidth() - this.view.lineWidth - 2*parseInt(this.element.css('padding-left'));
 		neat.remove();
 	},
+
+	pixelToText : function(pageX, pageY){
+		var line = this.element.find('.line'),
+			count = 2;
+		while(count < line.length && pageY > line.eq(count).offset().top){
+			count++;
+		}
+
+		count = count - 3 + this.view.start;
+
+		if(count > this.doc.lines.length - 1)
+			count = this.doc.lines.length - 1
+		else if(count > this.view.end)
+			count = this.view.end;
+
+		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - this.view.left,
+			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
+
+		mun.innerHTML = Array(rstr.length + 1).join('x');
+		var test = mun.offsetWidth;
+		if(left > test)
+			return { line: count, char: rstr.length };
+
+		while(rstr.length){
+			if(rstr.length == 1){
+				mstr = rstr;
+				rstr = '';
+			} else {
+				mid = (rstr.length/2)&~0;
+				mstr = rstr.substr(0,mid);
+				rstr = rstr.substr(mid);
+			}
+
+			mun.innerHTML = Array((lstr + mstr).length+1).join('x');
+			if(rstr.length){
+				if(mun.offsetWidth > left)
+					rstr = mstr;
+				else
+					lstr += mstr;
+			}
+		}
+		return { line: count, char: lstr.length };
+	},
+	textToPixel : function(cursor){
+		var top = (cursor.line - this.view.start) * this.view.lineHeight;
+		this.muncher[0].innerHTML = Array(cursor.char + 1).join('x');
+		return {
+			top: top,
+			left: this.muncher[0].offsetWidth + this.view.left + parseInt(this.element.css('padding-left'))
+		};
+	},
+
 	scroll : function(evt){
 		evt.stopPropagation();
 		evt.preventDefault();
