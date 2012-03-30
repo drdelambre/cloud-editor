@@ -288,7 +288,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 		this.muncher[0].innerHTML = Array(cursor.char + 1).join('x');
 		return {
 			top: top,
-			left: this.muncher[0].offsetWidth + parseInt(this.element.find('.content').css('margin-left'))
+			left: this.muncher[0].offsetWidth + this.pager.view.left + parseInt(this.pager.element.css('padding-left'))
 		};
 	},
 	////////////////////////////////////////////////////////
