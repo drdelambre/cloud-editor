@@ -8,12 +8,12 @@ var drdelambre = drdelambre || {
 		if(Object.prototype.toString.apply(args) !== '[object Array]')
 			args = [args];
 	
-		var cache = drdelambre.cache;
-		for(var t in cache){
+		var cache = drdelambre.cache,
+			ni, t;
+		for(t in cache){
 			if(topic.match(new RegExp(t)))
-				$.each(cache[t], function(){
-					this.apply($, args || []);
-				});
+				for(ni = cache[t].length; ni!=0;)
+					cache[t][--ni].apply($, args || []);
 		}
 	},
 	subscribe : function(topic, callback){
@@ -27,10 +27,10 @@ var drdelambre = drdelambre || {
 	unsubscribe : function(handle){
 		var cache = drdelambre.cache,
 			t = handle[0];
-		cache[t] && $.each(cache[t], function(idx){
-			if(this == handle[1])
-				cache[t].splice(idx, 1);
-		});
+		if(!cache[t]) return;
+		for(var ni in cache[t])
+			if(cache[t][ni] == handle[1])
+				cache[t].splice(ni, 1);
 	},
 	class : function(proto){
 		var id = ++drdelambre.inst_id;
@@ -90,12 +90,12 @@ drdelambre.editor = drdelambre.editor || {
 		if(Object.prototype.toString.apply(args) !== '[object Array]')
 			args = [args];
 	
-		var cache = drdelambre.editor.cache;
-		for(var t in cache){
+		var cache = drdelambre.editor.cache,
+			ni, t;
+		for(t in cache){
 			if(topic.match(new RegExp(t)))
-				$.each(cache[t], function(){
-					this.apply($, args || []);
-				});
+				for(ni = cache[t].length; ni!=0;)
+					cache[t][--ni].apply($, args || []);
 		}
 	},
 	subscribe : function(topic, callback){
@@ -109,11 +109,11 @@ drdelambre.editor = drdelambre.editor || {
 	unsubscribe : function(handle){
 		var cache = drdelambre.editor.cache,
 			t = handle[0];
-		cache[t] && $.each(cache[t], function(idx){
-			if(this == handle[1])
-				cache[t].splice(idx, 1);
-		});
-	}
+		if(!cache[t]) return;
+		for(var ni in cache[t])
+			if(cache[t][ni] == handle[1])
+				cache[t].splice(ni, 1);
+	},
 };
 
 /*
@@ -485,15 +485,21 @@ drdelambre.editor.Editor = new drdelambre.class({
 		}
 
 		var wider = $('<span>' + Array(this.doc.cursor.char + 1).join('x') + '</span>');
-		this.element.find('.window .content').append(wider);
+		this.pager.element.append(wider);
 		var left = wider.width() + this.pager.view.left;
-		if(isNaN(topper) && left < 0){
-			this.pager.view.left -= left;
-			left = 0;
-			this.pager.element.css({ 'text-indent': this.pager.view.left });
-		} else if(isNaN(topper) && left > this.pager.element.width()){
-			this.pager.view.left -= left - this.pager.element.width();
-			left = this.pager.element.width();
+		if(isNaN(topper)){
+			var mid = this.pager.element.width()/2;
+			if(mid - left > 0){
+				this.pager.view.left += mid - left;
+				left = mid;
+				if(this.pager.view.left > 0){
+					left -= this.pager.view.left;
+					this.pager.view.left = 0;
+				}
+			} else if(left > mid * 2){
+				this.pager.view.left -= left - (mid*2);
+				left = mid*2;
+			}
 			this.pager.element.css({ 'text-indent': this.pager.view.left });
 		}
 		this.cursor.css({ left: left });
@@ -693,7 +699,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		
 		this.element.html(Array(this.view.end + 6).join('<div class="line"></div>'));
 		this.gutter.html(Array(this.view.end + 6).join('<div class="line"></div>')).find('.line').each(function(ni,oz){
-			$(oz).html(ni-1);
+			oz.innerHTML = ni-1;
 		});
 		this.element[0].scrollTop = this.gutter[0].scrollTop = this.view.lineHeight * 2;
 
@@ -770,7 +776,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		else if(count > this.view.end)
 			count = this.view.end;
 
-		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left,
+		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - this.view.left,
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
 		mun.innerHTML = Array(rstr.length + 1).join('x');
