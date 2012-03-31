@@ -573,7 +573,12 @@ drdelambre.editor.Editor = new drdelambre.class({
 			return;
 		}
 
-		var pre = this.element.find('pre').html(this.pager.getView().replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;')),
+		var pre = this.element.find('pre').html(
+				this.pager.getView()
+					.replace(/&/g,'&amp;')
+					.replace(/>/g,'&gt;')
+					.replace(/</g,'&lt;')
+				).css({ left: this.pager.view.left }),
 			touch = evt.originalEvent.changedTouches[0] || evt.originalEvent.touches[0];
 		this.scrollIndex = {
 			x: touch.pageX,
@@ -631,6 +636,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 			clearInterval(this.scrollIndex.timer);
 		else
 			this.doc.cursor = this.pager.pixelToText(touch.pageX, touch.pageY);
+
 		delete this.scrollIndex;
 	},
 	
@@ -678,17 +684,6 @@ drdelambre.editor.Pager = new drdelambre.class({
 		if(!this.element.length)
 			throw new Error('drdelambre.editor.Pager: initialized without a container element');
 
-		this.muncher = $('<span></span>').css({
-			position: 'absolute',
-			top: 0,
-			left: -10000,
-			visibility: 'hidden',
-			margin: 0,
-			padding: 0,
-			'white-space':'pre',
-		});
-		this.element.append(this.muncher);
-
 		this.gutter = $(gutter);
 		var spacer = $('<div class="line"></div>');
 		this.element.append(spacer);
@@ -701,6 +696,17 @@ drdelambre.editor.Pager = new drdelambre.class({
 			$(oz).html(ni-1);
 		});
 		this.element[0].scrollTop = this.gutter[0].scrollTop = this.view.lineHeight * 2;
+
+		this.muncher = $('<span class="muncher"></span>').css({
+			position: 'absolute',
+			top: 0,
+			left: -10000,
+			visibility: 'hidden',
+			margin: 0,
+			padding: 0,
+			'white-space':'pre',
+		});
+		this.element.before(this.muncher);
 
 		this.doc = doc || new drdelambre.editor.Document();
 		if(this.doc.loaded) this.populate(this.doc);
@@ -719,7 +725,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 			guts[ni].innerHTML = ni - 1;
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
-		
+
 		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
 		this.element.append(neat);
 		this.view.lineWidth = neat[0].scrollWidth;
@@ -735,9 +741,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 		)
 			return;
 
+		if(index == this.view.start) index -= 2;
 		var start = index - this.view.start + 2
-		while(index < this.view.end + 2)
-			this.element.find('.line').eq(start++).html(this.doc.getFormattedLine(index++));
+		while(index < this.view.end + 2){
+			this.element.find('.line').eq(start++).html(
+				(++index <= 0?'':this.doc.getFormattedLine(index-1))
+			);
+		}
 
 		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
 		this.element.append(neat);
@@ -760,7 +770,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		else if(count > this.view.end)
 			count = this.view.end;
 
-		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - this.view.left,
+		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left,
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
 		mun.innerHTML = Array(rstr.length + 1).join('x');
@@ -825,7 +835,6 @@ drdelambre.editor.Pager = new drdelambre.class({
 			gut = this.gutter[0],
 			newTop = elem.scrollTop - y;
 
-		//don't show end cases
 		if(	(this.view.start == 0 && newTop < height) ||
 			(this.view.end > this.doc.lines.length - 2 && newTop > height)){
 			elem.scrollTop = gut.scrollTop = height;
@@ -833,11 +842,14 @@ drdelambre.editor.Pager = new drdelambre.class({
 		}
 
 		if(newTop < 0){
+			var diff = Math.round((0 - newTop)/(this.view.lineHeight*2)) + 1;
 			newTop = height;
-			this.moveUp();
-		} else if(newTop > height * 2){
+			this.moveUp(diff*2);
+		} else if(newTop > height*2){
+			var diff = Math.round((newTop - height*2)/(this.view.lineHeight*2)) + 1;
 			newTop = height;
-			this.moveDown();
+			if(diff > 0)
+				this.moveDown(diff*2);
 		}
 
 		var newLeft = this.view.left + x;
@@ -852,15 +864,19 @@ drdelambre.editor.Pager = new drdelambre.class({
 		drdelambre.editor.publish('/editor/scroll', newTop);
 	},
 	scrollTo : function(){
-		if(
-			this.doc.cursor.line <= this.view.start - 1 ||
-			this.doc.cursor.line >= this.view.end
-		){
+		if(this.doc.cursor.line == this.view.start){
+			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+		} else if(this.doc.cursor.line == this.view.end){
+			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+		}
+
+		if(this.doc.cursor.line <= this.view.start - 1){
+			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
 			this.view.end -= this.view.start;
 			var bottomHit = 0;
 			if(this.doc.lines.length < this.doc.cursor.line + this.view.end)
 				bottomHit = this.doc.lines.length - this.view.end - 1;
-			this.view.start = bottomHit?bottomHit:this.doc.cursor.line - 1;
+			this.view.start = bottomHit?bottomHit:this.doc.cursor.line;
 			this.view.end += this.view.start;
 			
 			this.updateLine(this.doc, this.view.start);
@@ -869,7 +885,23 @@ drdelambre.editor.Pager = new drdelambre.class({
 			for(var ni = 0; ni < gut.length; ni++)
 				gut.eq(ni).html(ni + this.view.start - 1);
 			return;
-		} else return;
+		}
+		else if(this.doc.cursor.line >= this.view.end + 1){
+			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+			this.view.start -= this.view.end;
+			var topHit = 0;
+			if(this.doc.cursor.line + this.view.start - 1 < 0)
+				topHit = 0 - this.view.start + 1;
+			this.view.end = topHit?topHit:this.doc.cursor.line;
+			this.view.start += this.view.end;
+			
+			this.updateLine(this.doc, this.view.start);
+			
+			var gut = this.gutter.find('.line');
+			for(var ni = 0; ni < gut.length; ni++)
+				gut.eq(ni).html(ni + this.view.start - 1);
+			return;
+		}
 	},
 	getView : function(){
 		var it = this.view.start,
@@ -879,80 +911,56 @@ drdelambre.editor.Pager = new drdelambre.class({
 		return str;
 	},
 
-	moveUp : function(){
-		this.view.start-=2;
-		this.view.end-=2;
+	moveUp : function(lines){
+		if(!lines)
+			lines = 2;
+		else if(this.view.start - lines < 0)
+			lines = this.view.start;
+
 		var elem = this.element[0],
 			gut = this.gutter[0],
-			start = this.view.start;
+			start = this.view.start-2;
 
-		if(start > 1) {
-			elem.lastChild.innerHTML = this.doc.getFormattedLine(start - 1);
-			elem.insertBefore(elem.lastChild, elem.firstChild);
-			elem.lastChild.innerHTML = this.doc.getFormattedLine(start - 2);
-			elem.insertBefore(elem.lastChild, elem.firstChild);
+		for(var ni = 0; ni < lines; ni++){
+			if(start - ni - 1 < 0)
+				elem.lastChild.innerHTML = '';
+			else
+				elem.lastChild.innerHTML = this.doc.getFormattedLine(start - ni - 1);
 
-			gut.lastChild.innerHTML = start;
-			gut.insertBefore(gut.lastChild, gut.firstChild);
-			gut.lastChild.innerHTML = start - 1;
-			gut.insertBefore(gut.lastChild, gut.firstChild);
-		} else if(start == 0){
-			elem.lastChild.innerHTML = '';
-			elem.insertBefore(elem.lastChild, elem.firstChild);
-			elem.lastChild.innerHTML = '';
-			elem.insertBefore(elem.lastChild, elem.firstChild);
+			gut.lastChild.innerHTML = start - ni;
 
-			gut.lastChild.innerHTML = '';
-			gut.insertBefore(gut.lastChild, gut.firstChild);
-			gut.lastChild.innerHTML = '';
-			gut.insertBefore(gut.lastChild, gut.firstChild);
-		} else {
-			elem.lastChild.innerHTML = this.doc.getFormattedLine(0);
 			elem.insertBefore(elem.lastChild, elem.firstChild);
-
-			gut.lastChild.innerHTML = 1;
 			gut.insertBefore(gut.lastChild, gut.firstChild);
-
-			this.view.start += 1;
-			this.view.end += 1;
 		}
+
+		this.view.start-=lines;
+		this.view.end-=lines;
 	},
-	moveDown : function(){
-		this.view.start+=2;
-		this.view.end+=2;
-		var end = this.view.end,
+	moveDown : function(lines){
+		if(!lines)
+			lines = 2;
+		else if(lines + this.view.end > this.doc.lines.length - 1)
+			lines = this.doc.lines.length - 1 - this.view.end;
+
+		var end = this.view.end + 2,
 			elem = this.element[0],
 			gut = this.gutter[0],
 			len = this.doc.lines.length - 1;
 
-		if(end < len - 1){
-			elem.firstChild.innerHTML = this.doc.getFormattedLine(end+1);
-			elem.appendChild(elem.firstChild);
-			elem.firstChild.innerHTML = this.doc.getFormattedLine(end+2);
-			elem.appendChild(elem.firstChild);
+		for(var ni = 0; ni < lines; ni++){
+			if(end + ni > len)
+				elem.firstChild.innerHTML = '';
+			else
+				elem.firstChild.innerHTML = this.doc.getFormattedLine(end + ni + 1);
 
-			gut.firstChild.innerHTML = end+2;
-			gut.appendChild(gut.firstChild);
-			gut.firstChild.innerHTML = end+3;
-			gut.appendChild(gut.firstChild);
-		} else if(end < len){
-			elem.firstChild.innerHTML = this.doc.getFormattedLine(end+1);
-			elem.appendChild(elem.firstChild);
+			gut.firstChild.innerHTML = end + ni + 2;
 
-			gut.firstChild.innerHTML = end+2;
-			gut.appendChild(gut.firstChild);
-
-			this.view.start -= 1;
-			this.view.end -= 1;
-		} else {
-			elem.firstChild.innerHTML = elem.childNodes[1].innerHTML = '';
 			elem.appendChild(elem.firstChild);
-			elem.appendChild(elem.firstChild);
-
-			gut.firstChild.innerHTML = gut.childNodes[1].innerHTML = '';
-			gut.appendChild(gut.firstChild);
 			gut.appendChild(gut.firstChild);
 		}
+
+		this.view.start+=lines;
+		this.view.end+=lines;
 	}
 });
 
@@ -969,7 +977,6 @@ drdelambre.editor.Pager = new drdelambre.class({
 drdelambre.editor.Document = new drdelambre.class({
 	loaded: false,
 	lines: [],
-	fLines: [],
 	_cursor: {
 		line: 0,
 		char: 0
@@ -996,6 +1003,7 @@ drdelambre.editor.Document = new drdelambre.class({
 			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).replace(/\r\n|\r/g, "\n").split("\n");
 		else
 			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
+
 		for(var ni = 0; ni < lines.length; ni++){
 			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 				this.longest = lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
@@ -1204,28 +1212,24 @@ drdelambre.editor.Document = new drdelambre.class({
  *
  */
 drdelambre.editor.Line = new drdelambre.class({	
-	_text : '',
-	_formattedText: null,
-	_state: null,
+	text : '',
+	_formatted: null,
+	state: null,
 
 	init : function(text, state){
 		this.text = text;
 	},
 	
-	get text(){
-		return this._text;
-	},
-	set text(string){
-		this._text = string;
-		this._formattedText = null;
-	},
 	get formatted(){
-		if(!this._formattedText)
+		if(!this._formatted)
 			return this.text
 				.replace(/&/g,'&amp;')
 				.replace(/</g,'&lt;')
 				.replace(/>/g,'&gt;');
-		return this._formattedText;
+		return this._formatted
+	},
+	set formatted(str){
+		this._formatted = str;
 	}
 });
 
