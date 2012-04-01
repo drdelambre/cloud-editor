@@ -484,8 +484,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 			sels.css({ display: 'none' });
 		}
 
-		var wider = $('<div class="line">' + this.doc.getLine().substr(0, this.doc.cursor.char) + '</div>').css({ display: 'inline-block' });
-		this.pager.element.append(wider);
+		var wider = $('<div class="line">' + this.doc.getLine().substr(0, this.doc.cursor.char).replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;') + '</div>').css({ display: 'inline-block' });
+		this.pager.element.append(wider).css({ 'text-indent': 0 });
 		var left = wider.width() + this.pager.view.left;
 		if(isNaN(topper)){
 			var mid = this.pager.element.width()/2;
@@ -496,12 +496,12 @@ drdelambre.editor.Editor = new drdelambre.class({
 					left -= this.pager.view.left;
 					this.pager.view.left = 0;
 				}
-			} else if(left > mid * 2){
+			} else if(wider.width() >= mid*2){
 				this.pager.view.left -= left - (mid*2);
 				left = mid*2;
 			}
-			this.pager.element.css({ 'text-indent': this.pager.view.left });
 		}
+		this.pager.element.css({ 'text-indent': this.pager.view.left });
 		this.cursor.css({ left: left });
 		wider.remove();
 	},
@@ -1239,7 +1239,6 @@ drdelambre.editor.Line = new drdelambre.class({
 		this._formatted = '';
 		while(pos < this.text.length){
 			token = mode.token(this.text, pos, this._state);
-
 			pos += token.string.length;
 			token.string = token.string.replace(/&/g, '&amp;').replace(/>/g, '&gt;').replace(/</g, '&lt;');
 			if(token.style)
@@ -1282,7 +1281,7 @@ drdelambre.editor.Line = new drdelambre.class({
 
 drdelambre.editor.mode = {};
 drdelambre.editor.mode.Javascript = new drdelambre.class({
-	operator: /[+\-*&%=<>!?|]/,
+	operator: /[+\-*&%=<>!?|~]/,
 	keywords: {
 		"in": 'operator',
 		"typeof": 'operator',
@@ -1376,8 +1375,8 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				style: null,
 				string: line.match(/\s/)[0]
 			}
-		if(line[0] == "'"){
-			var string = line.match(/(["'])(?:\\\1|.)*?\1/);
+		if(line[0] == "'" || line[0] == '"'){
+			var string = line.match(/^(["'])(?:\\\1|.)*?\1/);
 			if(string)
 				return {
 					style: 'string',
@@ -1388,22 +1387,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				style: 'string',
 				string: line,
 				completed: false,
-				character: "'"
-			}
-		}
-		if(line[0] == '"'){
-			var string = line.match(/(["'])(?:\\\1|.)*?\1/);
-			if(string)
-				return {
-					style: 'string',
-					string: string[0],
-					completed: true
-				}
-			return {
-				style: 'string',
-				string: line,
-				completed: false,
-				character: '"'
+				character: line[0]
 			}
 		}
 		if(/[\[\]{}\(\),;\:\.]/.test(line[0]))
@@ -1424,7 +1408,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 					completed: true
 				}
 			if(line[1] == "*"){
-				var ret = line.match(/\/*.*\*\//);
+				var ret = line.match(/^\/*.*\*\//);
 				if(!ret)
 					return {
 						style: 'comment',
@@ -1437,6 +1421,12 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 					completed: true
 				}
 			}
+			var regex = line.match(/^\/.*\/[gimy]*/);
+			if(regex)
+				return {
+					style: 'regex',
+					string: regex[0]
+				}
 			
 			return {
 				style: 'operator',
@@ -1449,7 +1439,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				string: line[0]
 			}
 
-		var word = line.match(/[\w\$_]+/);
+		var word = line.match(/^[\w\$_]+/);
 		if(this.keywords[word[0]])
 			return {
 				style: this.keywords[word[0]],

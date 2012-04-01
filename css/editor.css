@@ -356,6 +356,14 @@ body {
 	color: rgba(170, 170, 170, 1);
 	text-shadow: 0 0 2px rgba(170, 170, 170, 0);
 }
+.editor span.regex {
+	color: rgba(253, 168, 23, 1);
+	text-shadow: 0 0 2px rgba(253, 168, 23, 0);
+}
+.editor span.number {
+	color: rgba(174, 129, 255, 1);
+	text-shadow: 0 0 2px rgba(255, 140, 0, 0);
+}
 .editor span.atom {
 	color: rgba(0, 130, 179, 1);
 	text-shadow: 0 0 2px rgba(0, 149, 198, 0);
