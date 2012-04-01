@@ -484,7 +484,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 			sels.css({ display: 'none' });
 		}
 
-		var wider = $('<span>' + Array(this.doc.cursor.char + 1).join('x') + '</span>');
+		var wider = $('<span>' + this.doc.getLine().substr(0, this.doc.cursor.char) + '</span>');
 		this.pager.element.append(wider);
 		var left = wider.width() + this.pager.view.left;
 		if(isNaN(topper)){
@@ -779,7 +779,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - this.view.left,
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
-		mun.innerHTML = Array(rstr.length + 1).join('x');
+		mun.innerHTML = rstr;
 		var test = mun.offsetWidth;
 		if(left > test)
 			return { line: count, char: rstr.length };
@@ -890,7 +890,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 			var gut = this.gutter.find('.line');
 			for(var ni = 0; ni < gut.length; ni++)
 				gut.eq(ni).html(ni + this.view.start - 1);
-			return;
+
+			drdelambre.editor.publish('/editor/scroll');
 		}
 		else if(this.doc.cursor.line >= this.view.end + 1){
 			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
@@ -906,7 +907,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 			var gut = this.gutter.find('.line');
 			for(var ni = 0; ni < gut.length; ni++)
 				gut.eq(ni).html(ni + this.view.start - 1);
-			return;
+
+			drdelambre.editor.publish('/editor/scroll');
 		}
 	},
 	getView : function(){
@@ -1010,10 +1012,15 @@ drdelambre.editor.Document = new drdelambre.class({
 		else
 			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
 
+		var line,
+			mode = new drdelambre.editor.mode.Javascript(),
+			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
 			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 				this.longest = lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-			this.lines.push(new drdelambre.editor.Line(lines[ni]));
+			line = new drdelambre.editor.Line(lines[ni], state);
+			state = line.format(mode);
+			this.lines.push(line);
 		}
 		this.loaded = true;
 		drdelambre.editor.publish('/editor/doc/loaded', this);
@@ -1220,10 +1227,46 @@ drdelambre.editor.Document = new drdelambre.class({
 drdelambre.editor.Line = new drdelambre.class({	
 	text : '',
 	_formatted: null,
-	state: null,
+	_state:null,
 
 	init : function(text, state){
 		this.text = text;
+		if(state) this._state = state;
+	},
+
+	// token is in format { style: style, string: string }
+	format : function(mode){
+		var pos = 0,
+			token;
+		this._formatted = '';
+		while(pos < this.text.length){
+			token = mode.token(this.text, pos, this._state);
+
+			pos += token.string.length;
+			token.string = token.string.replace(/&/g, '&amp;').replace(/>/g, '&gt;').replace(/</g, '&lt;');
+			if(token.style)
+				token.string = '<span class="' + token.style + '">' + token.string + '</span>';
+			this._formatted += token.string;
+			
+			if(token.style == 'comment'){
+				if(token.completed == true)
+					this._state = null;
+				else
+					this._state = {
+						parent: 'comment'
+					};
+			} else if(token.style == 'string'){
+				if(token.completed == true)
+					this._state = null;
+				else
+					this._state = {
+						parent: 'string',
+						character: token.character
+					};
+			}
+		}
+
+		return this._state;
 	},
 	
 	get formatted(){
@@ -1239,4 +1282,189 @@ drdelambre.editor.Line = new drdelambre.class({
 	}
 });
 
+drdelambre.editor.mode = {};
+drdelambre.editor.mode.Javascript = new drdelambre.class({
+	operator: /[+\-*&%=<>!?|]/,
+	keywords: {
+		"in": 'operator',
+		"typeof": 'operator',
+		"instanceof": 'operator',
+		
+		"true": 'atom',
+		"false": 'atom',
+		"null": 'atom',
+		"undefined": 'atom',
+		"NaN": 'atom',
+		"Infinity": 'atom',
+		
+		"if": 'keyword',
+		"while": 'keyword',
+		"with": 'keyword',
+		"else": 'keyword',
+		"do": 'keyword',
+		"try": 'keyword',
+		"finally": 'keyword',
+		"return": 'keyword',
+		"break": 'keyword',
+		"continue": 'keyword',
+		"new": 'keyword',
+		"delete": 'keyword',
+		"throw": 'keyword',
+		"var": 'keyword',
+		"const": 'keyword',
+		"let": 'keyword',
+		"function": 'keyword',
+		"catch": 'keyword',
+		"for": 'keyword',
+		"switch": 'keyword',
+		"case": 'keyword',
+		"default": 'keyword'
+	},
 
+	token : function(line, start, state){
+		line = line.substr(start);
+		if(state){
+			if(state.parent == 'comment'){
+				var str = line.match(/.*\*\//);
+				if(str)
+					return {
+						style: 'comment',
+						string: str[0],
+						completed: true
+					}
+				return {
+					style: 'comment',
+					string: line,
+					completed: false
+				}
+			}
+			
+			if(state.parent == 'string'){
+				if(state.character == "'"){
+					var str = line.match(/.*(?:[^'\\]|\\.)*'/);
+					if(str)
+						return {
+							style: 'string',
+							string: str[0],
+							completed: true
+						}
+					return {
+						style: null,
+						string: line,
+						completed: false,
+						character: state.character
+					}
+				}
+				
+				var str = line.match(/.*[^\\]"/);
+				if(str)
+					return {
+						style: 'string',
+						string: str[0],
+						completed: true
+					}
+				return {
+					style: 'string',
+					string: line,
+					completed: false,
+					character: state.character
+				}
+			}
+		}
+
+		// eat whitespace
+		if(/\s/.test(line[0]))
+			return {
+				style: null,
+				string: line.match(/\s/)[0]
+			}
+		if(line[0] == "'"){
+			var string = line.match(/'(?:[^'\\]|\\.)*'/);
+			if(string)
+				return {
+					style: 'string',
+					string: string[0],
+					completed: true
+				}
+			return {
+				style: 'string',
+				string: line,
+				completed: false,
+				character: "'"
+			}
+		}
+		if(line[0] == '"'){
+			var string = line.match(/"[^"\\]*(?:\\.[^"\\]*)*"/);
+			if(string)
+				return {
+					style: 'string',
+					string: string[0],
+					completed: true
+				}
+			return {
+				style: 'string',
+				string: line,
+				completed: false,
+				character: '"'
+			}
+		}
+		if(/[\[\]{}\(\),;\:\.]/.test(line[0]))
+			return {
+				style: null,
+				string: line[0]
+			}
+		if(/\d/.test(line[0]))
+			return {
+				style: 'number',
+				string: line.match(/^\d*(?:\.\d*)?(?:[eE][+\-]?\d+)?/)[0]
+			}
+		if(line[0] == "/"){
+			if(line[1] == "/")
+				return {
+					style: 'comment',
+					string: line,
+					completed: true
+				}
+			if(line[1] == "*"){
+				var ret = line.match(/\/*.*\*\//);
+				if(!ret)
+					return {
+						style: 'comment',
+						string: line,
+						completed: false
+					}
+				return {
+					style: 'comment',
+					string: ret[0],
+					completed: true
+				}
+			}
+			
+			return {
+				style: 'operator',
+				string: line[0]
+			}
+		}
+		if(this.operator.test(line[0]))
+			return {
+				style: 'operator',
+				string: line[0]
+			}
+
+		var word = line.match(/[\w\$_]+/);
+		if(this.keywords[word[0]])
+			return {
+				style: this.keywords[word[0]],
+				string: word[0]
+			}
+		return {
+			style: null,
+			string: word[0]
+		}
+	}
+});
+drdelambre.editor.mode.PlainText = new drdelambre.class({
+	token : function(line, start){
+		return line;
+	}
+});
