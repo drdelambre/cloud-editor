@@ -484,7 +484,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 			sels.css({ display: 'none' });
 		}
 
-		var wider = $('<span>' + this.doc.getLine().substr(0, this.doc.cursor.char) + '</span>');
+		var wider = $('<div class="line">' + this.doc.getLine().substr(0, this.doc.cursor.char) + '</div>').css({ display: 'inline-block' });
 		this.pager.element.append(wider);
 		var left = wider.width() + this.pager.view.left;
 		if(isNaN(topper)){
@@ -794,7 +794,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 				rstr = rstr.substr(mid);
 			}
 
-			mun.innerHTML = Array((lstr + mstr).length+1).join('x');
+			mun.innerHTML = lstr + mstr;
 			if(rstr.length){
 				if(mun.offsetWidth > left)
 					rstr = mstr;
@@ -1233,8 +1233,6 @@ drdelambre.editor.Line = new drdelambre.class({
 		this.text = text;
 		if(state) this._state = state;
 	},
-
-	// token is in format { style: style, string: string }
 	format : function(mode){
 		var pos = 0,
 			token;
@@ -1379,7 +1377,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				string: line.match(/\s/)[0]
 			}
 		if(line[0] == "'"){
-			var string = line.match(/'(?:[^'\\]|\\.)*'/);
+			var string = line.match(/(["'])(?:\\\1|.)*?\1/);
 			if(string)
 				return {
 					style: 'string',
@@ -1394,7 +1392,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 			}
 		}
 		if(line[0] == '"'){
-			var string = line.match(/"[^"\\]*(?:\\.[^"\\]*)*"/);
+			var string = line.match(/(["'])(?:\\\1|.)*?\1/);
 			if(string)
 				return {
 					style: 'string',
