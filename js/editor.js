@@ -190,6 +190,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		this.element = elem;
 		this.editors.push(new drdelambre.editor.Editor(this.element.getElementsByClassName('editor')[0]));
 		drdelambre.editor.subscribe('/editor/caret', this.updateCount);
+
+		this.editor.element.addEventListener('dragover', this.hover, false);
+		this.editor.element.addEventListener('drop', this.drop, false);
 		
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		cursor[0].addEventListener('dblclick', this.openLine, false);
@@ -298,7 +301,40 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			line: this.editor.doc.cursor.line||0,
 			char: charter
 		};
-	}
+	},
+	
+	hover : function(evt){
+		evt.stopPropagation();
+		evt.preventDefault();
+	},
+	drop : function(evt){
+		evt.stopPropagation();
+		evt.preventDefault();
+
+		var file = evt.dataTransfer.files[0];
+
+		if(!file.name.match(/^.*\.(ttf|otf|svg|woff)$/i).length)
+			return;
+
+		var reader = new FileReader(),
+			win = this.editor.element.getElementsByClassName('window')[0];
+		reader.onload = function(evt){
+			var font = evt.target.result;
+			if(!evt.objectUrl){
+				var dataURL = font.split("base64");
+			
+				if(!~dataURL[0].indexOf("application/octet-stream")) {
+					dataURL[0] = "data:application/octet-stream;base64";
+					font = dataURL[0] + dataURL[1];
+				}
+			}
+			var name = 'custom-' + file.name.replace(/\..+$/,"").replace(/\W+/g, "-");
+			fontStyle = "@font-face{font-family: " + name + "; src:url(\"" + font + "\");}";
+			document.styleSheets[0].insertRule(fontStyle,0);
+			win.style.fontFamily = name;
+		};
+		reader.readAsDataURL(file);
+	},
 });
 
 /*
@@ -366,6 +402,10 @@ drdelambre.editor.Editor = new drdelambre.class({
 		var elem = evt.target;
 		while(elem != document.body){
 			if(elem == this.element) break;
+			if(!elem.parentNode){
+				elem = document.body;
+				break;
+			}
 			elem = elem.parentNode;
 		}
 		if(elem == document.body)
@@ -1149,7 +1189,6 @@ drdelambre.editor.Document = new drdelambre.class({
 		else if(pos.char > this.getLine(pos.line).length)
 			pos.char = this.getLine(pos.line).length;
 
-		var mode = new drdelambre.editor.mode.Javascript();
 		var state = pos.line > 0?this.lines[pos.line-1]._state:null,
 			before = new drdelambre.editor.Line(this.lines[pos.line].text.substr(0,pos.char), state),
 			after = this.lines[pos.line].text.substr(pos.char);
@@ -1163,14 +1202,14 @@ drdelambre.editor.Document = new drdelambre.class({
 			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
 			lines[curr++].text += text[ni];
-			state = lines[curr-1].format(mode);
+			state = lines[curr-1].format(this.mode);
 			lines.push(new drdelambre.editor.Line('',state));
 		}
 		lines[curr++].text += text[ni];
 		pos.char = lines[lines.length - 1].text.length;
 		lines[lines.length - 1].text += after;
 		lines[lines.length - 1]._state = state;
-		state = lines[lines.length - 1].format(mode);
+		state = lines[lines.length - 1].format(this.mode);
 
 		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
@@ -1179,7 +1218,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		pos.line = curr = pos.line + lines.length - 1;
 		while(this.lines[++curr]._state != state){
 			this.lines[curr]._state = state;
-			state = this.lines[curr].format(mode);
+			state = this.lines[curr].format(this.mode);
 		}
 
 		this.cursor = pos;
@@ -1217,13 +1256,12 @@ drdelambre.editor.Document = new drdelambre.class({
 		}
 		this.lines[pos.line].text += after;
 		
-		var mode = new drdelambre.editor.mode.Javascript(),
-			state = pos.line > 0?this.lines[pos.line - 1]._state:null,
+		var state = pos.line > 0?this.lines[pos.line - 1]._state:null,
 			curr = pos.line;
-		state = this.lines[curr++].format(mode);
+		state = this.lines[curr++].format(this.mode);
 		while(this.lines[curr]._state != state){
 			this.lines[curr]._state = state;
-			state = this.lines[curr++].format(mode);
+			state = this.lines[curr++].format(this.mode);
 		}
 		this.cursor = pos;
 		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);

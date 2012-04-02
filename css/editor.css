@@ -200,6 +200,7 @@ body {
 	overflow: hidden;
 	position: relative;
 	height: 100%;
+	border-radius: 0 0.5em 0.5em 0;
 }
 
 .editor .window .line-marker {
