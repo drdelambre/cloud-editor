@@ -7,12 +7,6 @@
 	<link rel="stylesheet" type="text/css" href="css/editor.css" />
 	<script type="text/javascript" src="http://192.168.1.120:8084/target/target-script-min.js#anonymous"></script>
 	<script type="text/javascript" src="js/editor.js"></script>
-	<script type="text/javascript">
-window.addEventListener('load', function(){
-	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
-	edit.editor.doc.fromURL('http://192.168.1.120/editor/js/editor.js');
-}, false);
-	</script>
 </head>
 <body>
 	<div class="file-editor">
@@ -36,4 +30,8 @@ window.addEventListener('load', function(){
 		</div>
 	</div>
 </body>
+	<script type="text/javascript">
+	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
+	edit.editor.doc.fromURL('http://192.168.1.120/editor/js/editor.js');
+	</script>
 </html>

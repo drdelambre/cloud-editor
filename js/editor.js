@@ -787,7 +787,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.gutter.innerHTML = Array(this.view.end + 6).join('<div class="line"></div>');
 		var line = this.gutter.getElementsByClassName('line');
 		for(var ni = 0; ni < line.length; ni++)
-			line.innerHTML = ni -1;
+			line[ni].innerHTML = ni - 1;
 
 		this.element.scrollTop = this.gutter.scrollTop = this.view.lineHeight * 2;
 
@@ -811,10 +811,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.view.start = 0;
 		var lines = this.element.getElementsByClassName('line'),
 			guts = this.gutter.getElementsByClassName('line'),
+			state = null;
 			ni = 2;
 
 		for(; ni <= this.view.end+4; ni++){
 			guts[ni].innerHTML = ni - 1;
+			this.doc.lines[ni-2]._state = state;
+			state = this.doc.lines[ni-2].format(this.doc.mode);
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
 
@@ -979,6 +982,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 			drdelambre.editor.publish('/editor/scroll');
 		}
 		else if(this.doc.cursor.line >= this.view.end + 1){
+			var curr = this.view.end,
+				state = this.doc.lines[curr - 1]._state;
+			while(curr <= this.doc.cursor.line + 2){
+				if(curr > this.doc.lines.length - 1) break;
+				this.doc.lines[curr]._state = state;
+				state = this.doc.lines[curr++].format(this.doc.mode);
+			}
 			this.element.scrollTop = this.gutter.scrollTop = 2*this.view.lineHeight;
 			this.view.start -= this.view.end;
 			var topHit = 0;
@@ -1038,13 +1048,17 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var end = this.view.end + 2,
 			elem = this.element,
 			gut = this.gutter,
-			len = this.doc.lines.length - 1;
+			len = this.doc.lines.length - 1,
+			state = end <= len?this.doc.lines[end]._state:null;
 
 		for(var ni = 0; ni < lines; ni++){
-			if(end + ni > len)
+			if(end + ni + 1 > len)
 				elem.firstChild.innerHTML = '';
-			else
+			else {
+				this.doc.lines[end + ni + 1]._state = state;
+				state = this.doc.lines[end + ni + 1].format(this.doc.mode);
 				elem.firstChild.innerHTML = this.doc.getFormattedLine(end + ni + 1);
+			}
 
 			gut.firstChild.innerHTML = end + ni + 2;
 
@@ -1070,6 +1084,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 drdelambre.editor.Document = new drdelambre.class({
 	loaded: false,
 	lines: [],
+	mode: null,
+
 	_cursor: {
 		line: 0,
 		char: 0
@@ -1097,14 +1113,13 @@ drdelambre.editor.Document = new drdelambre.class({
 		else
 			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
 
+		this.mode = new drdelambre.editor.mode.Javascript();
 		var line,
-			mode = new drdelambre.editor.mode.Javascript(),
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
 			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 				this.longest = lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-			line = new drdelambre.editor.Line(lines[ni], state);
-			state = line.format(mode);
+			line = new drdelambre.editor.Line(lines[ni]);
 			this.lines.push(line);
 		}
 		this.loaded = true;
@@ -1129,37 +1144,42 @@ drdelambre.editor.Document = new drdelambre.class({
 		else if(pos.char > this.getLine(pos.line).length)
 			pos.char = this.getLine(pos.line).length;
 
-		var line = this.lines[pos.line].text,
-			before = new drdelambre.editor.Line(line.substr(0,pos.char)),
-			after = new drdelambre.editor.Line(line.substr(pos.char));
+		var mode = new drdelambre.editor.mode.Javascript();
+		var state = pos.line > 0?this.lines[pos.line-1]._state:null,
+			before = new drdelambre.editor.Line(this.lines[pos.line].text.substr(0,pos.char), state),
+			after = this.lines[pos.line].text.substr(pos.char);
 
 		text = text.replace(/\t/g,Array(this.tabLen+1).join(' ')).split('\n');
 
 		var lines = [before],
 			curr = 0;
-		for(var ni = 0; ni < text.length;ni++){
-			lines[curr++].text += text[ni];
+
+		for(var ni = 0; ni < text.length-1;ni++){
 			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-			lines.push(new drdelambre.editor.Line(''));
+			lines[curr++].text += text[ni];
+			state = lines[curr-1].format(mode);
+			lines.push(new drdelambre.editor.Line('',state));
 		}
-		lines.pop();
+		lines[curr++].text += text[ni];
 		pos.char = lines[lines.length - 1].text.length;
-		lines[lines.length - 1].text += after.text;
+		lines[lines.length - 1].text += after;
+		lines[lines.length - 1]._state = state;
+		state = lines[lines.length - 1].format(mode);
+
 		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
-		var mode = new drdelambre.editor.mode.Javascript();
-		for(var ni = 0; ni < lines.length; ni++){
-			lines[ni].format(mode);
-		}
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
+		pos.line = curr = pos.line + lines.length - 1;
+		while(state){
+			this.lines[++curr]._state = state;
+			state = this.lines[curr].format(mode);
+		}
 
-		pos.line = pos.line + lines.length - 1;
 		this.cursor = pos;
 
 		drdelambre.editor.publish('/editor/doc/change', [this, pos.line - lines.length + 1]);
-		return;
 	},
 	remove : function(length, pos){
 		if(!pos)
@@ -1181,7 +1201,6 @@ drdelambre.editor.Document = new drdelambre.class({
 		while(length > 0){
 			if(length <= line.length){
 				this.lines[pos.line].text = line.substr(0, line.length - length);
-				this.lines[pos.line].formatted = '';
 				pos.char -= length;
 				break;
 			}
@@ -1191,11 +1210,16 @@ drdelambre.editor.Document = new drdelambre.class({
 			line = this.getLine(--pos.line);
 			pos.char = line.length;
 		}
-		this.lines[pos.line].formatted = '';
 		this.lines[pos.line].text += after;
 		
-		var mode = new drdelambre.editor.mode.Javascript();
-		this.lines[pos.line].format(mode);
+		var mode = new drdelambre.editor.mode.Javascript(),
+			state = pos.line > 0?this.lines[pos.line - 1]._state:null,
+			curr = pos.line;
+		state = this.lines[curr++].format(mode);
+		while(state){
+			this.lines[curr]._state = state;
+			state = this.lines[curr++].format(mode);
+		}
 		this.cursor = pos;
 		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);
 	},
@@ -1432,7 +1456,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 			
 			if(state.parent == 'string'){
 				if(state.character == "'"){
-					var str = line.match(/.*(?:[^'\\]|\\.)*'/);
+					var str = line.match(/.*[^\\]'/);
 					if(str)
 						return {
 							style: 'string',
@@ -1440,7 +1464,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 							completed: true
 						}
 					return {
-						style: null,
+						style: 'string',
 						string: line,
 						completed: false,
 						character: state.character
@@ -1477,6 +1501,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 					string: string[0],
 					completed: true
 				}
+
 			return {
 				style: 'string',
 				string: line,
