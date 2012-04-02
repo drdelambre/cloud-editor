@@ -1084,7 +1084,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 drdelambre.editor.Document = new drdelambre.class({
 	loaded: false,
 	lines: [],
-	mode: null,
+	_mode: null,
 
 	_cursor: {
 		line: 0,
@@ -1104,7 +1104,13 @@ drdelambre.editor.Document = new drdelambre.class({
 	tabLen: 4,
 	longest: 0,
 
-	init : function(){},
+	init : function(mode){
+		if(mode)
+			this._mode = mode;
+		else
+			this._mode = new drdelambre.editor.mode.Javascript();
+//			this._mode = new drdelambre.editor.mode.PlainText();
+	},
 	fromString : function(data){
 		if(typeof data !== "string") return;
 		var lines;
@@ -1113,7 +1119,6 @@ drdelambre.editor.Document = new drdelambre.class({
 		else
 			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
 
-		this.mode = new drdelambre.editor.mode.Javascript();
 		var line,
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
@@ -1172,8 +1177,8 @@ drdelambre.editor.Document = new drdelambre.class({
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 		pos.line = curr = pos.line + lines.length - 1;
-		while(state){
-			this.lines[++curr]._state = state;
+		while(this.lines[++curr]._state != state){
+			this.lines[curr]._state = state;
 			state = this.lines[curr].format(mode);
 		}
 
@@ -1216,7 +1221,7 @@ drdelambre.editor.Document = new drdelambre.class({
 			state = pos.line > 0?this.lines[pos.line - 1]._state:null,
 			curr = pos.line;
 		state = this.lines[curr++].format(mode);
-		while(state){
+		while(this.lines[curr]._state != state){
 			this.lines[curr]._state = state;
 			state = this.lines[curr++].format(mode);
 		}
@@ -1329,6 +1334,14 @@ drdelambre.editor.Document = new drdelambre.class({
 
 		this._selection = obj;
 		drdelambre.editor.publish('/editor/selection', this);
+	},
+	
+	get mode(){
+		return this._mode;
+	},
+	set mode(obj){
+		//trigger reformatting here
+		this._mode = obj;
 	}
 });
 
@@ -1397,6 +1410,14 @@ drdelambre.editor.Line = new drdelambre.class({
 	}
 });
 
+/*
+ *		the following classes represent the lexemes of their respective
+ *		languages. So far, only tokenizing is supported so every class should
+ *		have a token() function that takes a line and the start index of that
+ *		line as a parameter. The state stuff isn't finalized yet, and means
+ *		different things on both sides of Line.format, but check out that
+ *		function for any questions
+ */
 drdelambre.editor.mode = {};
 drdelambre.editor.mode.Javascript = new drdelambre.class({
 	operator: /[+\-*&%=<>!?|~]/,
@@ -1572,6 +1593,9 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 });
 drdelambre.editor.mode.PlainText = new drdelambre.class({
 	token : function(line, start){
-		return line;
+		return {
+			style: null,
+			string: line
+		};
 	}
 });
