@@ -928,7 +928,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 	},
 	textToPixel : function(cursor){
 		var top = (cursor.line - this.view.start) * this.view.lineHeight;
-		this.muncher.innerHTML = this.doc.getLine(cursor.line).substr(0,cursor.char);
+		this.muncher.innerHTML = this.doc.getLine(cursor.line).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').substr(0,cursor.char);
 		return {
 			top: top,
 			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'))
@@ -1251,6 +1251,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		
 		var state = pos.line > 0?this.lines[pos.line - 1]._state:null,
 			curr = pos.line;
+		this.lines[curr]._state = state;
 		state = this.lines[curr++].format(this.mode);
 		while(this.lines[curr]._state != state){
 			this.lines[curr]._state = state;
