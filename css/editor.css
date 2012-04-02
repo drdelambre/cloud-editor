@@ -364,6 +364,10 @@ body {
 	color: rgba(174, 129, 255, 1);
 	text-shadow: 0 0 2px rgba(255, 140, 0, 0);
 }
+.editor span.operator {
+	color: rgba(136, 85, 85, 1);
+	text-shadow: 0 0 2px rgba(136, 85, 85, 0);
+}
 .editor span.atom {
 	color: rgba(0, 130, 179, 1);
 	text-shadow: 0 0 2px rgba(0, 149, 198, 0);

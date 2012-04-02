@@ -1148,6 +1148,10 @@ drdelambre.editor.Document = new drdelambre.class({
 		lines[lines.length - 1].text += after.text;
 		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
 			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+		var mode = new drdelambre.editor.mode.Javascript();
+		for(var ni = 0; ni < lines.length; ni++){
+			lines[ni].format(mode);
+		}
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 
@@ -1177,6 +1181,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		while(length > 0){
 			if(length <= line.length){
 				this.lines[pos.line].text = line.substr(0, line.length - length);
+				this.lines[pos.line].formatted = '';
 				pos.char -= length;
 				break;
 			}
@@ -1186,7 +1191,11 @@ drdelambre.editor.Document = new drdelambre.class({
 			line = this.getLine(--pos.line);
 			pos.char = line.length;
 		}
+		this.lines[pos.line].formatted = '';
 		this.lines[pos.line].text += after;
+		
+		var mode = new drdelambre.editor.mode.Javascript();
+		this.lines[pos.line].format(mode);
 		this.cursor = pos;
 		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);
 	},
