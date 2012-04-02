@@ -316,9 +316,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		if(!file.name.match(/^.*\.(ttf|otf|svg|woff)$/i).length)
 			return;
 
-		var reader = new FileReader(),
-			win = this.editor.element.getElementsByClassName('window')[0];
-		reader.onload = function(evt){
+		var reader = new FileReader();
+		reader.onload = drdelambre.bind(function(evt){
 			var font = evt.target.result;
 			if(!evt.objectUrl){
 				var dataURL = font.split("base64");
@@ -331,8 +330,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			var name = 'custom-' + file.name.replace(/\..+$/,"").replace(/\W+/g, "-");
 			fontStyle = "@font-face{font-family: " + name + "; src:url(\"" + font + "\");}";
 			document.styleSheets[0].insertRule(fontStyle,0);
-			win.style.fontFamily = name;
-		};
+			this.editor.element.getElementsByClassName('window')[0].style.fontFamily = name;
+			this.editor.pager.resetRight();
+		},this);
 		reader.readAsDataURL(file);
 	},
 });
@@ -861,13 +861,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
 
-		var neat = document.createElement('div');
-		neat.className = 'line';
-		neat.innerHTML = Array(this.doc.longest + 1).join('x');
-		this.element.appendChild(neat);
-		this.view.lineWidth = neat.scrollWidth;
-		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
-		this.element.removeChild(neat);
+		this.resetRight();
 	},
 	updateLine : function(_doc, index){
 		if(
@@ -883,13 +877,12 @@ drdelambre.editor.Pager = new drdelambre.class({
 		while(index < this.view.end + 2)
 			this.element.getElementsByClassName('line')[start++].innerHTML = (++index <= 0?'':this.doc.getFormattedLine(index-1));
 
-		var neat = document.createElement('div');
-		neat.className = 'line';
-		neat.innerHTML = Array(this.doc.longest + 1).join('x');
-		this.element.appendChild(neat);
-		this.view.lineWidth = neat.scrollWidth;
+		this.resetRight();
+	},
+	resetRight : function(){
+		this.muncher.innerHTML = this.doc.longest;
+		this.view.lineWidth = this.muncher.offsetWidth;
 		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
-		this.element.removeChild(neat);
 	},
 
 	pixelToText : function(pageX, pageY){
@@ -935,7 +928,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 	},
 	textToPixel : function(cursor){
 		var top = (cursor.line - this.view.start) * this.view.lineHeight;
-		this.muncher.innerHTML = Array(cursor.char + 1).join('x');
+		this.muncher.innerHTML = this.doc.getLine(cursor.line).substr(0,cursor.char);
 		return {
 			top: top,
 			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'))
@@ -1142,7 +1135,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		length: 0
 	},
 	tabLen: 4,
-	longest: 0,
+	longest: '',
 
 	init : function(mode){
 		if(mode)
@@ -1162,8 +1155,8 @@ drdelambre.editor.Document = new drdelambre.class({
 		var line,
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
-			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-				this.longest = lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
+				this.longest = lines[ni].replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
 			line = new drdelambre.editor.Line(lines[ni]);
 			this.lines.push(line);
 		}
@@ -1199,8 +1192,8 @@ drdelambre.editor.Document = new drdelambre.class({
 			curr = 0;
 
 		for(var ni = 0; ni < text.length-1;ni++){
-			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-				this.longest = text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
+				this.longest = text[ni].replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
 			lines[curr++].text += text[ni];
 			state = lines[curr-1].format(this.mode);
 			lines.push(new drdelambre.editor.Line('',state));
@@ -1211,8 +1204,8 @@ drdelambre.editor.Document = new drdelambre.class({
 		lines[lines.length - 1]._state = state;
 		state = lines[lines.length - 1].format(this.mode);
 
-		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest)
-			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length;
+		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
+			this.longest = lines[lines.length - 1].text.replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 		pos.line = curr = pos.line + lines.length - 1;
