@@ -13,7 +13,7 @@ var drdelambre = drdelambre || {
 		for(t in cache){
 			if(topic.match(new RegExp(t)))
 				for(ni = cache[t].length; ni!=0;)
-					cache[t][--ni].apply($, args || []);
+					cache[t][--ni].apply(drdelambre, args || []);
 		}
 	},
 	subscribe : function(topic, callback){
@@ -41,7 +41,7 @@ var drdelambre = drdelambre || {
 				if(typeof proto[member] !== 'function')
 					this[member] = proto[member];
 				else
-					this[member] = $.proxy(proto[member],this);
+					this[member] = drdelambre.bind(proto[member],this);
 			}
 			this['__inst_id__'] = id;
 			if(this.init) this.init.apply(this,arguments);
@@ -70,6 +70,12 @@ var drdelambre = drdelambre || {
 			}
 		}
 		return target;
+	},
+	bind : function(obj, context){
+		var args = Array.prototype.slice.call(arguments, 2);
+		return function(){
+			return obj.apply(context, args.concat(Array.prototype.slice.call(arguments)));
+		};
 	}
 };
 
@@ -78,6 +84,53 @@ drdelambre.extend(drdelambre,{
 		if(drdelambre.debugTouch)
 			return true;
 		return !!('ontouchend' in document) ? true : false;
+	},
+	getOffset : function(elem){
+		var box = elem.getBoundingClientRect();
+		if(!box)
+			return { top: 0, left: 0 };
+	
+		var body = elem.ownerDocument.body,
+			clientTop  = document.documentElement.clientTop  || body.clientTop  || 0,
+			clientLeft = document.documentElement.clientLeft || body.clientLeft || 0,
+			scrollTop  = window.pageYOffset || document.documentElement.scrollTop  || body.scrollTop,
+			scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || body.scrollLeft,
+			top  = box.top  + scrollTop  - clientTop,
+			left = box.left + scrollLeft - clientLeft;
+	
+		return { top: top, left: left };
+	},
+	ajax : function(options){
+		options = drdelambre.extend({
+			url: '',
+			method: 'get',
+			success: null,
+			error: null,
+			async: true
+		}, options);
+	
+		if(window.XDomainRequest){
+			var req = new window.XDomainRequest();
+			if(options.success)
+				req.onload = function(){ options.success(req.responseText); };
+			if(options.error)
+				req.onerror = function(){ options.error(req.responeText); };
+			
+			req.open(options.method, options.url);
+			req.send();
+		} else {
+			var req = new XMLHttpRequest();
+			req.onreadystatechange = function(){
+				if(req.readyState == 4){
+					if(req.status == 200 && options.success)
+						options.success(req.responseText);
+					else if(req.status != 200 && options.error)
+						options.error(req.responseText);
+				}
+			};
+			req.open(options.method, options.url, options.async);
+			req.send();
+		}
 	}
 });
 
@@ -95,7 +148,7 @@ drdelambre.editor = drdelambre.editor || {
 		for(t in cache){
 			if(topic.match(new RegExp(t)))
 				for(ni = cache[t].length; ni!=0;)
-					cache[t][--ni].apply($, args || []);
+					cache[t][--ni].apply(drdelambre, args || []);
 		}
 	},
 	subscribe : function(topic, callback){
@@ -134,49 +187,64 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	curr: 0,
 
 	init : function(elem){
-		this.element = $(elem);
-		this.editors.push(new drdelambre.editor.Editor(this.element.find('.editor')));
+		this.element = elem;
+		this.editors.push(new drdelambre.editor.Editor(this.element.getElementsByClassName('editor')[0]));
 		drdelambre.editor.subscribe('/editor/caret', this.updateCount);
 		
-		var cursor = this.element.find('.footer .line-count span');
-		cursor.eq(0).bind('dblclick', this.openLine);
-		cursor.eq(1).bind('dblclick', this.openChar);
+		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
+		cursor[0].addEventListener('dblclick', this.openLine, false);
+		cursor[1].addEventListener('dblclick', this.openChar, false);
 	},
-	get editor(){ return this.editors[this.curr]; },
+	get editor(){
+		return this.editors[this.curr];
+	},
 	set editor(_index){},
 	updateCount : function(line){
-		var count = this.element.find('.footer .line-count span');
-		count.eq(0).html(line.line + 1);
-		count.eq(1).html(line.char);
+		var count = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
+		count[0].innerHTML = line.line + 1;
+		count[1].innerHTML = line.char;
 	},
 	
-	openLine : function(evt){
-		var elem = $(evt.target).closest('span'),
-			inp = $('<input value="' + elem.html() + '">');
-		elem.css({ display: 'none' });
-		elem.before(inp);
+	openLine : function(evt){				//jFree
+		var elem = evt.target,
+			inp = document.createElement('input');
+
+		while(elem != document.body){
+			if(elem.nodeType == 1 && elem.nodeName.toLowerCase() == 'span')
+				break;
+			elem = elem.parentNode;
+		}
+		if(elem == document.body) return;
+
+		inp.value = elem.innerHTML;
+		elem.style.display = 'none';
+		elem.parentNode.insertBefore(inp, elem);
 		inp.focus();
-		$(window).bind('keypress', this.keyCloseLine);
-		$(window).bind('mousedown', this.closeLine);
+		window.addEventListener('keypress', this.keyCloseLine, false);
+		window.addEventListener('mousedown', this.closeLine, false);
 	},
 	keyCloseLine : function(evt){
 		if(evt.which != 13) return;
 		this.closeLine();
 	},
 	closeLine : function(evt){
-		var elem = this.element.find('.footer .line-count input');
-		if(evt && $(evt.target).closest(elem).length)
-			return;
-		$(window).unbind('keypress', this.keyCloseLine);
-		$(window).unbind('mousedown', this.closeLine);
-		var line = parseInt(elem.val());
-		if(evt || isNaN(line) || line < 1){
-			elem.next('span').css({ display: '' });
-			elem.remove();
-			return;
+		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('input')[0],
+			curr = evt?evt.target:document.body;
+		
+		while(curr != document.body){
+			if(curr == elem) break;
+			curr = curr.parentNode;
 		}
-		elem.next('span').css({ display: '' });
-		elem.remove();
+
+		if(evt && curr != document.body)
+			return;
+		window.removeEventListener('keypress', this.keyCloseLine, false);
+		window.removeEventListener('mousedown', this.closeLine, false);
+		var line = parseInt(elem.value);
+		elem.nextSibling.style.display = '';
+		elem.parentNode.removeChild(elem);
+		if(evt || isNaN(line) || line < 1)
+			return;
 		if(line > this.editor.doc.lines.length)
 			line = this.editor.doc.lines.length;
 		this.editor.doc.cursor = {
@@ -185,39 +253,52 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		};
 	},
 	openChar : function(evt){
-		var elem = $(evt.target).closest('span'),
-			inp = $('<input value="' + elem.html() + '">');
-		elem.css({ display: 'none' });
-		elem.before(inp);
+		var elem = evt.target,
+			inp = document.createElement('input');
+
+		while(elem != document.body){
+			if(elem.nodeType == 1 && elem.nodeName.toLowerCase() == 'span')
+				break;
+			elem = elem.parentNode;
+		}
+		if(elem == document.body) return;
+
+		inp.value = elem.innerHTML;
+		elem.style.display = 'none';
+		elem.parentNode.insertBefore(inp, elem);
 		inp.focus();
-		$(window).bind('keypress', this.keyCloseChar);
-		$(window).bind('mousedown', this.closeChar);
+		window.addEventListener('keypress', this.keyCloseChar, false);
+		window.addEventListener('mousedown', this.closeChar, false);
 	},
 	keyCloseChar : function(evt){
 		if(evt.which != 13) return;
 		this.closeChar();
 	},
 	closeChar : function(evt){
-		var elem = this.element.find('.footer .line-count input');
-		if(evt && $(evt.target).closest(elem).length)
-			return;
-		$(window).unbind('keypress', this.keyCloseChar);
-		$(window).unbind('mousedown', this.closeChar);
-		var charter = parseInt(elem.val());
-		if(evt || isNaN(charter) || charter < 0){
-			elem.next('span').css({ display: '' });
-			elem.remove();
-			return;
+		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('input')[0],
+			curr = evt?evt.target:document.body;
+		
+		while(curr != document.body){
+			if(curr == elem) break;
+			curr = curr.parentNode;
 		}
-		elem.next('span').css({ display: '' });
-		elem.remove();
+
+		if(evt && curr != document.body)
+			return;
+		window.removeEventListener('keypress', this.keyCloseChar, false);
+		window.removeEventListener('mousedown', this.closeChar, false);
+		var charter = parseInt(elem.value);
+		elem.nextSibling.style.display = '';
+		elem.parentNode.removeChild(elem);
+		if(evt || isNaN(charter) || charter < 0)
+			return;
 		if(charter > this.editor.doc.getLine(this.editor.doc.cursor.line||0).length)
 			charter = this.editor.doc.getLine(this.editor.doc.cursor.line||0).length;
 		this.editor.doc.cursor = {
 			line: this.editor.doc.cursor.line||0,
 			char: charter
 		};
-	},
+	}
 });
 
 /*
@@ -236,56 +317,70 @@ drdelambre.editor.Editor = new drdelambre.class({
 	pager: null,
 	doc: null,
 	cursor: null,
+	textarea: null,
+
 	tabLen: 4,
 	hasFocus: false,
 	showKeys: false,
 
 	init : function(elem,doc){
-		this.element = $(elem);
-		if(!this.element.length)
+		this.element = elem;
+		if(!this.element)
 			this.element = this.create();
 		this.doc = doc || new drdelambre.editor.Document();
-		this.pager = new drdelambre.editor.Pager(this.element.find('.content'), this.doc, this.element.find('.gutter'));
-		this.cursor = this.element.find('.cursor');
+		this.pager = new drdelambre.editor.Pager(this.element.getElementsByClassName('content')[0], this.doc, this.element.getElementsByClassName('gutter')[0]);
+		this.cursor = this.element.getElementsByClassName('cursor')[0];
+		this.textarea = this.element.getElementsByTagName('textarea')[0];
 
 		drdelambre.editor.subscribe('/editor/caret', this.moveCursor);
 		drdelambre.editor.subscribe('/editor/scroll', this.moveCursor);
 		drdelambre.editor.subscribe('/editor/selection', this.setText);
 
-		$(window).bind('mousedown', this.focus);
+		window.addEventListener('mousedown', this.focus, false);
 
 		if(drdelambre.isTouch){
-			this.element.addClass('touch');
+			this.element.className += ' touch';
 
-			this.element.find('.key-toggle').bind('click', this.toggleKeyboard);
-			this.element.children('textarea').bind('input', this.input);
-			this.element.bind('touchstart', this.startTouch);
-			this.element.find('pre').bind('mouseup', $.proxy(function(evt){
-				this.element.find('pre').html('');
-				if(this.showKeys) this.element.find('textarea').focus();
+			this.element.getElementsByClassName('key-toggle')[0].addEventListener('click', this.toggleKeyboard, false);
+			this.textarea.addEventListener('input', this.input, false);
+			this.element.addEventListener('touchstart', this.startTouch, false);
+			this.element.getElementsByTagName('pre')[0].addEventListener('mouseup', drdelambre.bind(function(evt){
+				this.element.getElementsByTagName('pre')[0].innerHTML = '';
+				if(this.showKeys) this.textarea.focus();
 			},this));
-			$(window).bind('keydown', this.keydown);
+			window.addEventListener('keydown', this.keydown, false);
 		} else {
-			this.element.children('textarea').bind('input', this.input);
-			this.element.bind('mousewheel DOMMouseScroll', this.pager.scroll);
-			this.element.bind('mousedown', this.start);
+			this.textarea.addEventListener('input', this.input, false);
+			this.element.addEventListener('mousewheel', this.pager.scroll, false);
+			this.element.addEventListener('DOMMouseScroll', this.pager.scroll, false);
+			this.element.addEventListener('mousedown', this.start, false);
 		}
 	},
 	create : function(){
-		return $('<div class="editor"><textarea></textarea><div class="gutter"></div><div class="window"><div class="line-marker" style="display:none;"><div class="select top"></div><div class="select middle"></div><div class="select bottom"></div><div class="cursor"><div class="marker"></div><div class="tag"></div></div></div><div class="content"></div><pre contenteditable=true></pre></div><div class="key-toggle"><img src="images/keyboard.png" /> keyboard</div></div>');
+		var div = document.createElement('div');
+		div.className = 'editor';
+		div.innerHTML = '<textarea></textarea><div class="gutter"></div><div class="window"><div class="line-marker" style="display:none;"><div class="select top"></div><div class="select middle"></div><div class="select bottom"></div><div class="cursor"><div class="marker"></div><div class="tag"></div></div></div><div class="content"></div><pre contenteditable=true></pre></div><div class="key-toggle"><img src="images/keyboard.png" /> keyboard</div>';
+		return div;
 	},
 	focus : function(evt){
-		var elem = $(evt.target).closest(this.element);
-		if(!this.hasFocus && elem.length){
-			$(window).bind('cut', this.cut);
-			$(window).bind('paste', this.paste);
-			$(window).bind('keydown', this.keydown);
+		var elem = evt.target;
+		while(elem != document.body){
+			if(elem == this.element) break;
+			elem = elem.parentNode;
+		}
+		if(elem == document.body)
+			elem = null;
+
+		if(!this.hasFocus && elem){
+			window.addEventListener('cut', this.cut, false);
+			window.addEventListener('paste', this.paste, false);
+			window.addEventListener('keydown', this.keydown, false);
 			this.hasFocus = true;
-		} else if(!elem.length){
-			$(window).unbind('cut', this.cut);
-			$(window).unbind('paste', this.paste);
-			$(window).unbind('keydown', this.keydown);
-			this.element.find('.line-marker').css({ display: 'none' });
+		} else if(!elem){
+			window.removeEventListener('cut', this.cut, false);
+			window.removeEventListener('paste', this.paste, false);
+			window.removeEventListener('keydown', this.keydown, false);
+			this.element.getElementsByClassName('line-marker')[0].style.display = 'none';
 			this.hasFocus = false;
 			if(drdelambre.isTouch && this.showKeys)
 				this.toggleKeyboard();
@@ -294,12 +389,12 @@ drdelambre.editor.Editor = new drdelambre.class({
 	toggleKeyboard : function(evt){
 		if(this.showKeys){
 			this.showKeys = false;
-			this.element.find('.key-toggle').removeClass('hover');
-			this.element.find('textarea').blur();
+			this.element.getElementsByClassName('.key-toggle')[0].className.split(/\s/).join(' ').replace(/\w*hover/g, '');
+			this.textarea.blur();
 		} else {
 			this.showKeys = true;
-			this.element.find('.key-toggle').addClass('hover');
-			this.element.find('textarea').focus();
+			this.element.getElementsByClassName('.key-toggle')[0].className += ' hover';
+			this.textarea.focus();
 		}
 	},
 
@@ -307,7 +402,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 		switch(evt.which){
 			case 9:			//tab
 				evt.preventDefault();
-				this.input({ target: this.element.find('textarea').val('\t') });
+				this.textarea.value = '\t';
+				this.input({ target: this.textarea });
 				break;
 			case 13:		//enter
 				evt.preventDefault();
@@ -317,7 +413,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 					if(tab[curr++] == '\t') space += 3;
 					space += 1;
 				}
-				this.input({ target: this.element.find('textarea').val('\n' + Array(space+1).join(' ')) });
+				this.textarea.value = '\n' + Array(space + 1).join(' ');
+				this.input({ target: this.textarea });
 				break;
 			case 8:			//backspace
 				if(!evt.shiftKey){
@@ -404,91 +501,76 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	input : function(evt){
 		this.doc.clearSelection();
-		var elem = $(evt.target);
-		this.doc.insert(elem.val());
-		elem.val('');
+		this.doc.insert(this.textarea.value);
+		this.textarea.value = '';
 	},
 	moveCursor : function(topper){
-		var marker = this.element.find('.line-marker');
+		var marker = this.element.getElementsByClassName('line-marker')[0];
 		if(	this.doc.cursor.line < this.pager.view.start - 2 ||
 			this.doc.cursor.line > this.pager.view.end + 2){
-			marker.css({ display: 'none' });
+			marker.style.display = 'none';
 			return;
 		}
 		
-		if(marker.css('display') == 'none')
-			marker.css({ display: '' });
-		marker.css({
-			top: (this.doc.cursor.line - this.pager.view.start + 2) * this.pager.view.lineHeight - (!isNaN(topper)?topper:this.pager.element.scrollTop())
-		});
+		if(document.defaultView.getComputedStyle(marker,null).getPropertyValue('display') == 'none')
+			marker.style.display = 'block';
+		marker.style.top = ((this.doc.cursor.line - this.pager.view.start + 2) * this.pager.view.lineHeight - (!isNaN(topper)?topper:this.pager.element.scrollTop)) + 'px';
 		
-		var sels = this.element.find('.line-marker .select').css({ width: '', top: '', left: '', display: 'none' }),
+		var sels = marker.getElementsByClassName('select'),
 			docsel = this.doc.selection;
+		for(var ni = 0; ni < sels.length; ni++){
+			sels[ni].style.width = '100%';
+			sels[ni].style.top = 0;
+			sels[ni].style.left = 0;
+			sels[ni].style.display = 'none';
+		}
 		if(docsel.length){
 			var line = docsel.end.line - docsel.start.line,
 				start = this.pager.textToPixel(docsel.start),
 				end = this.pager.textToPixel(docsel.end);
 
-			sels.eq(2).css({
-				display: '',
-				left: start.left,
-				width: end.left - start.left
-			});
+			sels[2].style.display = 'block';
+			sels[2].style.left = start.left + 'px';
+			sels[2].style.width = (end.left - start.left) + 'px';
 			if(docsel.start.line == this.doc.cursor.line && docsel.start.char == this.doc.cursor.char){
 				if(line > 0){
-					sels.eq(0).css({
-						display: '',
-						top: this.pager.view.lineHeight,
-						width: end.left
-					});
-					sels.eq(2).css({
-						width: ''
-					});
+					sels[0].style.display = 'block';
+					sels[0].style.top = this.pager.view.lineHeight + 'px';
+					sels[0].style.width = end.left + 'px';
+					sels[2].style.width = '100%';
 				}
 				if(line > 1){
-					sels.eq(0).css({
-						top: line * this.pager.view.lineHeight
-					});
-					
-					sels.eq(1).css({
-						top: this.pager.view.lineHeight,
-						height: (line - 1) * this.pager.view.lineHeight,
-						display: ''
-					});
+					sels[0].style.top = (line * this.pager.view.lineHeight) + 'px';
+					sels[1].style.display = 'block';
+					sels[1].style.top = this.pager.view.lineHeight + 'px';
+					sels[1].style.height = ((line - 1) * this.pager.view.lineHeight) + 'px';
 				}
 			} else {
 				if(line > 0){
-					sels.eq(0).css({
-						display: '',
-						top: 0 - this.pager.view.lineHeight,
-						left: start.left
-					});
-					sels.eq(2).css({
-						width: end.left,
-						left: 0
-					});
+					sels[0].style.display = 'block';
+					sels[0].style.top = (0 - this.pager.view.lineHeight) + 'px';
+					sels[0].style.left = start.left + 'px';
+					sels[2].style.left = 0;
+					sels[2].style.width = end.left + 'px';
 				}
 				if(line > 1){
-					sels.eq(0).css({
-						top: 0 - line * this.pager.view.lineHeight
-					});
-					
-					sels.eq(1).css({
-						top: 0 - (line - 1) * this.pager.view.lineHeight,
-						height: (line - 1) * this.pager.view.lineHeight,
-						display: ''
-					});
+					sels[0].style.top = (0 - line * this.pager.view.lineHeight) + 'px';
+					sels[1].style.display = 'block';
+					sels[1].style.top = (0 - (line - 1) * this.pager.view.lineHeight) + 'px';
+					sels[1].style.height = ((line - 1) * this.pager.view.lineHeight) + 'px';
 				}
 			}
-		} else {
-			sels.css({ display: 'none' });
 		}
 
-		var wider = $('<div class="line">' + this.doc.getLine().substr(0, this.doc.cursor.char).replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;') + '</div>').css({ display: 'inline-block' });
-		this.pager.element.append(wider).css({ 'text-indent': 0 });
-		var left = wider.width() + this.pager.view.left;
+		var wider = document.createElement('div');
+		wider.className = 'line';
+		wider.innerHTML = this.doc.getLine().substr(0, this.doc.cursor.char).replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;');
+		wider.style.display = 'inline-block';
+		this.pager.element.appendChild(wider);
+		this.pager.element.style.textIndent = 0;
+		var left = wider.offsetWidth + this.pager.view.left;
 		if(isNaN(topper)){
-			var mid = this.pager.element.width()/2;
+			var mid = this.pager.element.offsetWidth/2;
 			if(mid - left > 0){
 				this.pager.view.left += mid - left;
 				left = mid;
@@ -496,20 +578,20 @@ drdelambre.editor.Editor = new drdelambre.class({
 					left -= this.pager.view.left;
 					this.pager.view.left = 0;
 				}
-			} else if(wider.width() >= mid*2){
+			} else if(wider.offsetWidth >= mid*2){
 				this.pager.view.left -= left - (mid*2);
 				left = mid*2;
 			}
 		}
-		this.pager.element.css({ 'text-indent': this.pager.view.left });
-		this.cursor.css({ left: left });
-		wider.remove();
+		this.pager.element.style.textIndent = this.pager.view.left + 'px';
+		this.cursor.style.left = left + 'px';
+		this.pager.element.removeChild(wider);
 	},
 	setText : function(doc){
 		if(doc.__inst_id__ != this.doc.__inst_id__) return;
-		var text = this.element.find('textarea').val(this.doc.getSelection())[0];
-		text.selectionStart = 0;
-		text.selectionEnd = text.value.length;
+		this.textarea.value = this.doc.getSelection();
+		this.textarea.selectionStart = 0;
+		this.textarea.selectionEnd = this.textarea.value.length;
 	},
 
 	start : function(evt){
@@ -521,8 +603,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 		};
 		this.doc.cursor = pos;
 
-		$(window).bind('mousemove', this.move);
-		$(window).bind('mouseup', this.kill);
+		window.addEventListener('mousemove', this.move, false);
+		window.addEventListener('mouseup', this.kill, false);
 	},
 	move : function(evt){
 		evt.preventDefault();
@@ -570,22 +652,26 @@ drdelambre.editor.Editor = new drdelambre.class({
 	kill : function(evt){
 		evt.preventDefault();
 		
-		$(window).unbind('mousemove', this.move);
-		$(window).unbind('mouseup', this.kill);
+		window.removeEventListener('mousemove', this.move, false);
+		window.removeEventListener('mouseup', this.kill, false);
 	},
 
 	startTouch : function(evt){
-		if($(evt.target).closest('.key-toggle').length){
-			return;
+		var elem = evt.target;
+		while(elem != document.body){
+			if(elem.className && elem.className.match(/key-toggle/).length)
+				return;
+			elem = elem.parentNode();
 		}
 
-		var pre = this.element.find('pre').html(
-				this.pager.getView()
+		var pre = this.element.getElementsByTagName('pre')[0],
+			touch = evt.changedTouches[0] || evt.touches[0];
+		
+		pre.innerHTML = this.pager.getView()
 					.replace(/&/g,'&amp;')
 					.replace(/>/g,'&gt;')
-					.replace(/</g,'&lt;')
-				).css({ left: this.pager.view.left }),
-			touch = evt.originalEvent.changedTouches[0] || evt.originalEvent.touches[0];
+					.replace(/</g,'&lt;');
+		pre.style.left = this.pager.view.left + 'px',
 		this.scrollIndex = {
 			x: touch.pageX,
 			y: touch.pageY,
@@ -594,17 +680,17 @@ drdelambre.editor.Editor = new drdelambre.class({
 			timer: null
 		};
 		
-		$(window).bind('touchmove', this.moveTouch);
-		$(window).bind('touchend', this.killTouch);
+		window.addEventListener('touchmove', this.moveTouch, false);
+		window.addEventListener('touchend', this.killTouch, false);
 	},
 	moveTouch : function(evt){
 		evt.preventDefault();
-		this.scrollIndex.events.push(evt.originalEvent.touches);
+		this.scrollIndex.events.push(evt.touches);
 
 		if(this.scrollIndex.timer)
 			return;
 		
-		var throttle = $.proxy(function(){
+		var throttle = drdelambre.bind(function(){
 			var cleanTouch;
 			for(var ni = this.scrollIndex.events.length; ni != 0;){
 				for(var no = this.scrollIndex.events[--ni].length; no!=0;){
@@ -620,23 +706,21 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.pager.scroll({
 				preventDefault:function(){},
 				stopPropagation: function(){},
-				originalEvent:{
-					wheelDeltaX:cleanTouch.pageX - this.scrollIndex.x,
-					wheelDeltaY:cleanTouch.pageY - this.scrollIndex.y
-				}
+				wheelDeltaX:cleanTouch.pageX - this.scrollIndex.x,
+				wheelDeltaY:cleanTouch.pageY - this.scrollIndex.y
 			});
 			this.scrollIndex.x = cleanTouch.pageX;
 			this.scrollIndex.y = cleanTouch.pageY;
-			this.element.find('pre').css({ top: 0-this.pager.element.scrollTop()+(2*this.pager.view.lineHeight) });
+			this.element.getElementsByTagName('pre')[0].style.top = (0-this.pager.element.scrollTop+(2*this.pager.view.lineHeight)) + 'px';
 		}, this);
-		this.element.find('pre').html('');
+		this.element.getElementsByTagName('pre')[0].innerHTML = '';
 		this.scrollIndex.timer = setInterval(throttle,50);
 		throttle();
 	},
 	killTouch : function(evt){
-		$(window).unbind('touchmove', this.moveTouch);
-		$(window).unbind('touchend', this.killTouch);
-		var touch = evt.originalEvent.changedTouches[0];
+		window.removeEventListener('touchmove', this.moveTouch, false);
+		window.removeEventListener('touchend', this.killTouch, false);
+		var touch = evt.changedTouches[0];
 
 		if(this.scrollIndex.timer)		// we moved
 			clearInterval(this.scrollIndex.timer);
@@ -647,14 +731,15 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	
 	cut : function(evt){
-		setTimeout($.proxy(function(){ this.doc.clearSelection(); },this),0);
+		setTimeout(drdelambre.bind(function(){ this.doc.clearSelection(); },this),0);
 	},
 	paste : function(evt){
-		this.element.find('textarea').val('').focus();
+		this.textarea.value = '';
+		this.textarea.focus();
 		this.doc.clearSelection();
-		setTimeout($.proxy(function(){
-			this.doc.insert(this.element.find('textarea').val());
-			this.element.find('textarea').val('');
+		setTimeout(drdelambre.bind(function(){
+			this.doc.insert(this.textarea.value);
+			this.textarea.value = '';
 		},this),0);
 	}
 });
@@ -686,33 +771,34 @@ drdelambre.editor.Pager = new drdelambre.class({
 	gutter: null,
 
 	init : function(elem, doc, gutter){
-		this.element = $(elem);
-		if(!this.element.length)
+		this.element = elem;
+		if(!this.element)
 			throw new Error('drdelambre.editor.Pager: initialized without a container element');
 
-		this.gutter = $(gutter);
-		var spacer = $('<div class="line"></div>');
-		this.element.append(spacer);
-		this.view.lineHeight = spacer.outerHeight();
-		this.view.end = Math.floor(this.element.height()/this.view.lineHeight) - 1;
-		spacer.remove();
+		this.gutter = gutter;
+		var spacer = document.createElement('div');
+		spacer.className = 'line';
+		this.element.appendChild(spacer);
+		this.view.lineHeight = spacer.clientHeight;
+		this.view.end = Math.floor(this.element.clientHeight/this.view.lineHeight) - 1;
+		this.element.removeChild(spacer);
 		
-		this.element.html(Array(this.view.end + 6).join('<div class="line"></div>'));
-		this.gutter.html(Array(this.view.end + 6).join('<div class="line"></div>')).find('.line').each(function(ni,oz){
-			oz.innerHTML = ni-1;
-		});
-		this.element[0].scrollTop = this.gutter[0].scrollTop = this.view.lineHeight * 2;
+		this.element.innerHTML = Array(this.view.end + 6).join('<div class="line"></div>');
+		this.gutter.innerHTML = Array(this.view.end + 6).join('<div class="line"></div>');
+		var line = this.gutter.getElementsByClassName('line');
+		for(var ni = 0; ni < line.length; ni++)
+			line.innerHTML = ni -1;
 
-		this.muncher = $('<span class="muncher"></span>').css({
-			position: 'absolute',
-			top: 0,
-			left: -10000,
-			visibility: 'hidden',
-			margin: 0,
-			padding: 0,
-			'white-space':'pre',
-		});
-		this.element.before(this.muncher);
+		this.element.scrollTop = this.gutter.scrollTop = this.view.lineHeight * 2;
+
+		this.muncher = document.createElement('span');
+		this.muncher.className = 'muncher';
+		this.muncher.style.position = 'absolute';
+		this.muncher.style.top = 0;
+		this.muncher.style.left = '-10000px';
+		this.muncher.style.visibility = 'hidden';
+		this.muncher.style.whiteSpace = 'pre';
+		this.element.parentNode.insertBefore(this.muncher, this.element);
 
 		this.doc = doc || new drdelambre.editor.Document();
 		if(this.doc.loaded) this.populate(this.doc);
@@ -723,8 +809,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 	populate : function(doc){
 		this.view.end -= this.view.start;
 		this.view.start = 0;
-		var lines = this.element.children('.line'),
-			guts = this.gutter.children('.line'),
+		var lines = this.element.getElementsByClassName('line'),
+			guts = this.gutter.getElementsByClassName('line'),
 			ni = 2;
 
 		for(; ni <= this.view.end+4; ni++){
@@ -732,11 +818,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
 
-		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
-		this.element.append(neat);
-		this.view.lineWidth = neat[0].scrollWidth;
-		this.view.right = this.element.outerWidth() - this.view.lineWidth - 2*parseInt(this.element.css('padding-left'));
-		neat.remove();
+		var neat = document.createElement('div');
+		neat.className = 'line';
+		neat.innerHTML = Array(this.doc.longest + 1).join('x');
+		this.element.appendChild(neat);
+		this.view.lineWidth = neat.scrollWidth;
+		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
+		this.element.removeChild(neat);
 	},
 	updateLine : function(_doc, index){
 		if(
@@ -749,25 +837,23 @@ drdelambre.editor.Pager = new drdelambre.class({
 
 		if(index == this.view.start) index -= 2;
 		var start = index - this.view.start + 2
-		while(index < this.view.end + 2){
-			this.element.find('.line').eq(start++).html(
-				(++index <= 0?'':this.doc.getFormattedLine(index-1))
-			);
-		}
+		while(index < this.view.end + 2)
+			this.element.getElementsByClassName('line')[start++].innerHTML = (++index <= 0?'':this.doc.getFormattedLine(index-1));
 
-		var neat = $('<div class="line">' + Array(this.doc.longest + 1).join('x') + '</div>');
-		this.element.append(neat);
-		this.view.lineWidth = neat[0].scrollWidth - this.view.left;
-		this.view.right = this.element.outerWidth() - this.view.lineWidth - 2*parseInt(this.element.css('padding-left'));
-		neat.remove();
+		var neat = document.createElement('div');
+		neat.className = 'line';
+		neat.innerHTML = Array(this.doc.longest + 1).join('x');
+		this.element.appendChild(neat);
+		this.view.lineWidth = neat.scrollWidth;
+		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
+		this.element.removeChild(neat);
 	},
 
 	pixelToText : function(pageX, pageY){
-		var line = this.element.find('.line'),
+		var line = this.element.getElementsByClassName('line'),
 			count = 2;
-		while(count < line.length && pageY > line.eq(count).offset().top){
+		while(count < line.length && pageY > drdelambre.getOffset(line[count]).top)
 			count++;
-		}
 
 		count = count - 3 + this.view.start;
 
@@ -776,7 +862,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		else if(count > this.view.end)
 			count = this.view.end;
 
-		var mun = this.muncher[0], left = pageX - line.eq(0).offset().left - this.view.left,
+		var mun = this.muncher, left = pageX - drdelambre.getOffset(line[0]).left - this.view.left,
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
 		mun.innerHTML = rstr;
@@ -806,19 +892,18 @@ drdelambre.editor.Pager = new drdelambre.class({
 	},
 	textToPixel : function(cursor){
 		var top = (cursor.line - this.view.start) * this.view.lineHeight;
-		this.muncher[0].innerHTML = Array(cursor.char + 1).join('x');
+		this.muncher.innerHTML = Array(cursor.char + 1).join('x');
 		return {
 			top: top,
-			left: this.muncher[0].offsetWidth + this.view.left + parseInt(this.element.css('padding-left'))
+			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'))
 		};
 	},
 
-	scroll : function(evt){
-		evt.stopPropagation();
-		evt.preventDefault();
+	scroll : function(e){
+		e.stopPropagation();
+		e.preventDefault();
 		
-		var x = 0, y = 0,
-			e = evt.originalEvent;
+		var x = 0, y = 0;
 
 		if ('wheelDeltaX' in e) {
 			x = e.wheelDeltaX;
@@ -837,8 +922,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 		}
 		
 		var height = this.view.lineHeight * 2,
-			elem = this.element[0],
-			gut = this.gutter[0],
+			elem = this.element,
+			gut = this.gutter,
 			newTop = elem.scrollTop - y;
 
 		if(	(this.view.start == 0 && newTop < height) ||
@@ -866,18 +951,18 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.view.left = newLeft;
 
 		elem.scrollTop = gut.scrollTop = newTop;
-		this.element.css({ 'text-indent': this.view.left });
+		this.element.style.textIndent = this.view.left + 'px';
 		drdelambre.editor.publish('/editor/scroll', newTop);
 	},
 	scrollTo : function(){
 		if(this.doc.cursor.line == this.view.start){
-			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+			this.element.scrollTop = this.gutter.scrollTop = 2*this.view.lineHeight;
 		} else if(this.doc.cursor.line == this.view.end){
-			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+			this.element.scrollTop = this.gutter.scrollTop = 2*this.view.lineHeight;
 		}
 
 		if(this.doc.cursor.line <= this.view.start - 1){
-			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+			this.element.scrollTop = this.gutter.scrollTop = 2*this.view.lineHeight;
 			this.view.end -= this.view.start;
 			var bottomHit = 0;
 			if(this.doc.lines.length < this.doc.cursor.line + this.view.end)
@@ -887,14 +972,14 @@ drdelambre.editor.Pager = new drdelambre.class({
 			
 			this.updateLine(this.doc, this.view.start);
 			
-			var gut = this.gutter.find('.line');
+			var gut = this.gutter.getElementsByClassName('line');
 			for(var ni = 0; ni < gut.length; ni++)
-				gut.eq(ni).html(ni + this.view.start - 1);
+				gut[ni].innerHTML = ni + this.view.start - 1;
 
 			drdelambre.editor.publish('/editor/scroll');
 		}
 		else if(this.doc.cursor.line >= this.view.end + 1){
-			this.element[0].scrollTop = this.gutter[0].scrollTop = 2*this.view.lineHeight;
+			this.element.scrollTop = this.gutter.scrollTop = 2*this.view.lineHeight;
 			this.view.start -= this.view.end;
 			var topHit = 0;
 			if(this.doc.cursor.line + this.view.start - 1 < 0)
@@ -904,9 +989,9 @@ drdelambre.editor.Pager = new drdelambre.class({
 			
 			this.updateLine(this.doc, this.view.start);
 			
-			var gut = this.gutter.find('.line');
+			var gut = this.gutter.getElementsByClassName('line');
 			for(var ni = 0; ni < gut.length; ni++)
-				gut.eq(ni).html(ni + this.view.start - 1);
+				gut[ni].innerHTML = ni + this.view.start - 1;
 
 			drdelambre.editor.publish('/editor/scroll');
 		}
@@ -925,8 +1010,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 		else if(this.view.start - lines < 0)
 			lines = this.view.start;
 
-		var elem = this.element[0],
-			gut = this.gutter[0],
+		var elem = this.element,
+			gut = this.gutter,
 			start = this.view.start-2;
 
 		for(var ni = 0; ni < lines; ni++){
@@ -951,8 +1036,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 			lines = this.doc.lines.length - 1 - this.view.end;
 
 		var end = this.view.end + 2,
-			elem = this.element[0],
-			gut = this.gutter[0],
+			elem = this.element,
+			gut = this.gutter,
 			len = this.doc.lines.length - 1;
 
 		for(var ni = 0; ni < lines; ni++){
@@ -1027,9 +1112,9 @@ drdelambre.editor.Document = new drdelambre.class({
 	},
 	fromURL : function(path){
 		this.loaded = false;
-		$.ajax({
-		  url: path,
-		  success: this.fromString
+		drdelambre.ajax({
+			url: path,
+			success: this.fromString
 		});
 	},
 
