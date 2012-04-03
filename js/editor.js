@@ -137,6 +137,9 @@ drdelambre.extend(drdelambre,{
 // sometimes i do crazy things with namespaces, here's the place for that
 drdelambre.editor = drdelambre.editor || {
 	cache: {},
+	settings: {
+		tabLength: 4
+	},
 
 	init : function(){},
 	publish : function(topic, args){
@@ -355,7 +358,6 @@ drdelambre.editor.Editor = new drdelambre.class({
 	cursor: null,
 	textarea: null,
 
-	tabLen: 4,
 	hasFocus: false,
 	showKeys: false,
 
@@ -443,17 +445,36 @@ drdelambre.editor.Editor = new drdelambre.class({
 			case 9:			//tab
 				evt.preventDefault();
 				this.textarea.value = '\t';
-				this.input({ target: this.textarea });
+				if(this.doc.selection.length && this.doc.selection.start.line != this.doc.selection.end.line){
+					var curr = this.doc.selection.start.line,
+						end = this.doc.selection.end.char == 0?this.doc.selection.end.line-1:this.doc.selection.end.line,
+						state = curr > 0?this.doc.lines[curr-1]._state:null,
+						text = '';
+					while(curr <= end){
+						text = this.doc.lines[curr].text;
+						if(evt.shiftKey){
+							text = /^\s/.test(text)?text.replace(new RegExp("^(\\t|\\s{" + drdelambre.editor.settings.tabLength + "}|\\s*)"), ''):text;
+						} else {
+							text = '\t' + text;
+						}
+						this.doc.lines[curr] = new drdelambre.editor.Line(text, state);
+						state = this.doc.lines[curr++].format(this.doc.mode);
+					}
+					this.pager.updateLine(this.doc, this.doc.selection.start.line);
+				} else {
+					this.input({ target: this.textarea });
+				}
 				break;
 			case 13:		//enter
 				evt.preventDefault();
-				var space = curr = 0;
-				var tab = this.doc.getLine(this.doc.cursor.line);
+				var space = '',
+					curr = 0,
+					tab = this.doc.getLine(this.doc.cursor.line);
 				while(curr < tab.length && (tab[curr] == ' ' || tab[curr] == '\t')){
-					if(tab[curr++] == '\t') space += 3;
-					space += 1;
+					if(tab[curr++] == '\t') space += '\t';
+					else space += ' ';
 				}
-				this.textarea.value = '\n' + Array(space + 1).join(' ');
+				this.textarea.value = '\n' + space;
 				this.input({ target: this.textarea });
 				break;
 			case 8:			//backspace
@@ -573,6 +594,8 @@ drdelambre.editor.Editor = new drdelambre.class({
 			sels[2].style.left = start.left + 'px';
 			sels[2].style.width = (end.left - start.left) + 'px';
 			if(docsel.start.line == this.doc.cursor.line && docsel.start.char == this.doc.cursor.char){
+				if(docsel.end.char == 0)
+					sels[2].style.display = 'none';
 				if(line > 0){
 					sels[0].style.display = 'block';
 					sels[0].style.top = this.pager.view.lineHeight + 'px';
@@ -604,7 +627,12 @@ drdelambre.editor.Editor = new drdelambre.class({
 
 		var wider = document.createElement('div');
 		wider.className = 'line';
-		wider.innerHTML = this.doc.getLine().substr(0, this.doc.cursor.char).replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;');
+		wider.innerHTML = this.doc.getLine()
+				.substr(0, this.doc.cursor.char)
+				.replace(/&/g,'&amp;')
+				.replace(/>/g,'&gt;')
+				.replace(/</g,'&lt;')
+				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 		wider.style.display = 'inline-block';
 		this.pager.element.appendChild(wider);
 		this.pager.element.style.textIndent = 0;
@@ -901,7 +929,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var mun = this.muncher, left = pageX - drdelambre.getOffset(line[0]).left - this.view.left,
 			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
-		mun.innerHTML = rstr;
+		mun.innerHTML = rstr.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 		var test = mun.offsetWidth;
 		if(left > test)
 			return { line: count, char: rstr.length };
@@ -916,7 +944,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 				rstr = rstr.substr(mid);
 			}
 
-			mun.innerHTML = lstr + mstr;
+			mun.innerHTML = (lstr + mstr).replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 			if(rstr.length){
 				if(mun.offsetWidth > left)
 					rstr = mstr;
@@ -928,7 +956,12 @@ drdelambre.editor.Pager = new drdelambre.class({
 	},
 	textToPixel : function(cursor){
 		var top = (cursor.line - this.view.start) * this.view.lineHeight;
-		this.muncher.innerHTML = this.doc.getLine(cursor.line).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').substr(0,cursor.char);
+		this.muncher.innerHTML = this.doc.getLine(cursor.line)
+				.replace(/&/g,'&amp;')
+				.replace(/</g,'&lt;')
+				.replace(/>/g,'&gt;')
+				.substr(0,cursor.char)
+				.replace(/\t/g, Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 		return {
 			top: top,
 			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'))
@@ -1134,7 +1167,6 @@ drdelambre.editor.Document = new drdelambre.class({
 		},
 		length: 0
 	},
-	tabLen: 4,
 	longest: '',
 
 	init : function(mode){
@@ -1148,15 +1180,15 @@ drdelambre.editor.Document = new drdelambre.class({
 		if(typeof data !== "string") return;
 		var lines;
 		if ("aaa".split(/a/).length == 0)
-			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).replace(/\r\n|\r/g, "\n").split("\n");
+			lines = data.replace(/\r\n|\r/g, "\n").split("\n");
 		else
-			lines = data.replace(/\t/g,Array(this.tabLen+1).join(' ')).split(/\r\n|\r|\n/);
+			lines = data.split(/\r\n|\r|\n/);
 
 		var line,
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
-			if(lines[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
-				this.longest = lines[ni].replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
+			if(lines[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
+				this.longest = lines[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 			line = new drdelambre.editor.Line(lines[ni]);
 			this.lines.push(line);
 		}
@@ -1186,14 +1218,14 @@ drdelambre.editor.Document = new drdelambre.class({
 			before = new drdelambre.editor.Line(this.lines[pos.line].text.substr(0,pos.char), state),
 			after = this.lines[pos.line].text.substr(pos.char);
 
-		text = text.replace(/\t/g,Array(this.tabLen+1).join(' ')).split('\n');
+		text = text.split('\n');
 
 		var lines = [before],
 			curr = 0;
 
 		for(var ni = 0; ni < text.length-1;ni++){
-			if(text[ni].replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
-				this.longest = text[ni].replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
+			if(text[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
+				this.longest = text[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 			lines[curr++].text += text[ni];
 			state = lines[curr-1].format(this.mode);
 			lines.push(new drdelambre.editor.Line('',state));
@@ -1204,8 +1236,8 @@ drdelambre.editor.Document = new drdelambre.class({
 		lines[lines.length - 1]._state = state;
 		state = lines[lines.length - 1].format(this.mode);
 
-		if(lines[lines.length - 1].text.replace(/\t/g,Array(this.tabLen + 1).join(' ')).length > this.longest.length)
-			this.longest = lines[lines.length - 1].text.replace(/&/g,'&amp;').replace(/>/g,'&gt;').replace(/</g,'&lt;').replace(/\t/g,Array(this.tabLen + 1).join(' '));
+		if(lines[lines.length - 1].text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
+			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 		pos.line = curr = pos.line + lines.length - 1;
@@ -1398,10 +1430,11 @@ drdelambre.editor.Line = new drdelambre.class({
 	},
 	format : function(mode){
 		var pos = 0,
+			text = this.text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')),
 			token;
 		this._formatted = '';
-		while(pos < this.text.length){
-			token = mode.token(this.text, pos, this._state);
+		while(pos < text.length){
+			token = mode.token(text, pos, this._state);
 			pos += token.string.length;
 			token.string = token.string.replace(/&/g, '&amp;').replace(/>/g, '&gt;').replace(/</g, '&lt;');
 			if(token.style)
@@ -1434,7 +1467,8 @@ drdelambre.editor.Line = new drdelambre.class({
 			return this.text
 				.replace(/&/g,'&amp;')
 				.replace(/</g,'&lt;')
-				.replace(/>/g,'&gt;');
+				.replace(/>/g,'&gt;')
+				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
 		return this._formatted
 	},
 	set formatted(str){
