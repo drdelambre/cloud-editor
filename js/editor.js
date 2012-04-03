@@ -400,8 +400,11 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.textarea.addEventListener('input', this.input, false);
 			this.element.addEventListener('touchstart', this.startTouch, false);
 			this.element.getElementsByTagName('pre')[0].addEventListener('mouseup', drdelambre.bind(function(evt){
+				window.getSelection().removeAllRanges();
 				this.element.getElementsByTagName('pre')[0].innerHTML = '';
-				if(this.showKeys) this.textarea.focus();
+				if(this.showKeys){
+					this.textarea.focus();
+				}
 			},this));
 			window.addEventListener('keydown', this.keydown, false);
 		} else {
@@ -446,13 +449,14 @@ drdelambre.editor.Editor = new drdelambre.class({
 		}
 	},
 	toggleKeyboard : function(evt){
+		var toggle = this.element.getElementsByClassName('key-toggle')[0];
 		if(this.showKeys){
 			this.showKeys = false;
-			this.element.getElementsByClassName('.key-toggle')[0].className.split(/\s/).join(' ').replace(/\w*hover/g, '');
+			toggle.className = toggle.className.split(/\s/).join(' ').replace(/\s?hover/g, '');
 			this.textarea.blur();
 		} else {
 			this.showKeys = true;
-			this.element.getElementsByClassName('.key-toggle')[0].className += ' hover';
+			toggle.className += ' hover';
 			this.textarea.focus();
 		}
 	},
@@ -584,14 +588,15 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	moveCursor : function(topper){
 		var marker = this.element.getElementsByClassName('line-marker')[0];
-		if(	this.doc.cursor.line < this.pager.view.start - 2 ||
-			this.doc.cursor.line > this.pager.view.end + 2){
+		if(	(this.scrollIndex && this.scrollIndex.timer) ||
+			this.doc.cursor.line < this.pager.view.start - 1 ||
+			this.doc.cursor.line > this.pager.view.end + 1){
 			marker.style.display = 'none';
 			return;
 		}
 		
 		if(document.defaultView.getComputedStyle(marker,null).getPropertyValue('display') == 'none')
-			marker.style.display = 'block';
+			marker.style.display = '';
 		marker.style.top = ((this.doc.cursor.line - this.pager.view.start + 2) * this.pager.view.lineHeight - (!isNaN(topper)?topper:this.pager.element.scrollTop)) + 'px';
 		
 		var sels = marker.getElementsByClassName('select'),
@@ -744,9 +749,9 @@ drdelambre.editor.Editor = new drdelambre.class({
 	startTouch : function(evt){
 		var elem = evt.target;
 		while(elem != document.body){
-			if(elem.className && elem.className.match(/key-toggle/).length)
+			if((elem.className && elem.className.match(/key-toggle/)) || !elem.parentNode)
 				return;
-			elem = elem.parentNode();
+			elem = elem.parentNode;
 		}
 
 		var pre = this.element.getElementsByTagName('pre')[0],
@@ -796,21 +801,29 @@ drdelambre.editor.Editor = new drdelambre.class({
 			});
 			this.scrollIndex.x = cleanTouch.pageX;
 			this.scrollIndex.y = cleanTouch.pageY;
-			this.element.getElementsByTagName('pre')[0].style.top = (0-this.pager.element.scrollTop+(2*this.pager.view.lineHeight)) + 'px';
+//			this.element.getElementsByTagName('pre')[0].style.top = (0-this.pager.element.scrollTop+(2*this.pager.view.lineHeight)) + 'px';
 		}, this);
-		this.element.getElementsByTagName('pre')[0].innerHTML = '';
+		this.element.getElementsByTagName('pre')[0].style.display = 'none';
+		this.element.getElementsByClassName('key-toggle')[0].style.display = 'none';
 		this.scrollIndex.timer = setInterval(throttle,50);
 		throttle();
 	},
 	killTouch : function(evt){
 		window.removeEventListener('touchmove', this.moveTouch, false);
 		window.removeEventListener('touchend', this.killTouch, false);
-		var touch = evt.changedTouches[0];
+		var touch = evt.changedTouches[0],
+			pre = this.element.getElementsByTagName('pre')[0];
 
-		if(this.scrollIndex.timer)		// we moved
+		if(this.scrollIndex.timer){		// we moved
 			clearInterval(this.scrollIndex.timer);
-		else
+			this.scrollIndex.timer = null;
+			this.element.getElementsByClassName('key-toggle')[0].style.display = '';
+			pre.style.display = '';
+			this.moveCursor();
+		} else {
 			this.doc.cursor = this.pager.pixelToText(touch.pageX, touch.pageY);
+			window.getSelection().removeAllRanges();
+		}
 
 		delete this.scrollIndex;
 	},
@@ -1022,11 +1035,11 @@ drdelambre.editor.Pager = new drdelambre.class({
 		}
 
 		if(newTop < 0){
-			var diff = Math.round((0 - newTop)/(this.view.lineHeight*2)) + 1;
+			var diff = Math.round((0 - newTop)/height) + 1;
 			newTop = height;
 			this.moveUp(diff*2);
 		} else if(newTop > height*2){
-			var diff = Math.round((newTop - height*2)/(this.view.lineHeight*2)) + 1;
+			var diff = Math.round((newTop - height*2)/height) + 1;
 			newTop = height;
 			if(diff > 0)
 				this.moveDown(diff*2);
@@ -1134,7 +1147,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var end = this.view.end + 2,
 			elem = this.element,
 			gut = this.gutter,
-			len = this.doc.lines.length - 1,
+			len = this.doc.lines.length - 1;
 			state = end <= len?this.doc.lines[end]._state:null;
 
 		for(var ni = 0; ni < lines; ni++){
@@ -1598,8 +1611,9 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 		if(/\s/.test(line[0]))
 			return {
 				style: null,
-				string: line.match(/\s/)[0]
+				string: line.match(/\s+/)[0]
 			}
+
 		if(line[0] == "'" || line[0] == '"'){
 			var string = line.match(/^(["'])(?:\\\1|.)*?\1/);
 			if(string)
@@ -1616,16 +1630,19 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				character: line[0]
 			}
 		}
+
 		if(/[\[\]{}\(\),;\:\.]/.test(line[0]))
 			return {
 				style: null,
 				string: line[0]
 			}
+
 		if(/\d/.test(line[0]))
 			return {
 				style: 'number',
 				string: line.match(/^\d*(?:\.\d*)?(?:[eE][+\-]?\d+)?/)[0]
 			}
+
 		if(line[0] == "/"){
 			if(line[1] == "/")
 				return {
@@ -1659,7 +1676,9 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 				string: line[0]
 			}
 		}
-		if(this.operator.test(line[0]))
+
+		// can't use this.operators because of android bug
+		if(/[+\-*&%=<>!?|~]/.test(line[0]))
 			return {
 				style: 'operator',
 				string: line[0]

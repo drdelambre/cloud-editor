@@ -235,7 +235,8 @@ body {
 	font-size: 1em;
 	font-family: inherit;
 	line-height: 1.3em;
-	color: #fff;
+	background: #fff;
+	color: #000;
 	opacity: 0;
 }
 
@@ -391,7 +392,7 @@ body {
 
 .editor .key-toggle {
 	font-size: 0.8em;
-	opacity: 0.5;
+	opacity: 1;
 	padding: 0.75em 1em 0.75em;
 	float: left;
 	position: absolute;
@@ -399,8 +400,9 @@ body {
 	right: 0;
 	z-index: 21;
 	border-radius: 0.5em 0 0.5em 0;
-	background: rgba(0,0,0,0.1);
+	background: #555;
 	display: none;
+	color:#ccc;
 }
 
 .editor .key-toggle img {
@@ -411,7 +413,8 @@ body {
 .editor.touch .key-toggle { display: block; }
 
 .editor.touch .key-toggle.hover {
-	opacity: 1;
+	text-shadow: 0 0 2px #fff;
+	color: #fff;
 }
 
 /* =Default Theme
