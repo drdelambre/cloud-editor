@@ -200,6 +200,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		cursor[0].addEventListener('dblclick', this.openLine, false);
 		cursor[1].addEventListener('dblclick', this.openChar, false);
+		
+		this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0].addEventListener('mousedown', this.toggleSettings, false);
 	},
 	get editor(){
 		return this.editors[this.curr];
@@ -210,7 +212,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		count[0].innerHTML = line.line + 1;
 		count[1].innerHTML = line.char;
 	},
-	
+
 	openLine : function(evt){				//jFree
 		var elem = evt.target,
 			inp = document.createElement('input');
@@ -239,6 +241,10 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		
 		while(curr != document.body){
 			if(curr == elem) break;
+			if(!curr.parentNode){
+				curr = document.body;
+				break;
+			}
 			curr = curr.parentNode;
 		}
 
@@ -304,6 +310,17 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			line: this.editor.doc.cursor.line||0,
 			char: charter
 		};
+	},
+	
+	toggleSettings : function(evt){
+		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0];
+		if(/selected/.test(elem.className)){
+			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
+			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
+		} else {
+			elem.className += ' selected';
+			this.element.className += ' edit';
+		}
 	},
 	
 	hover : function(evt){
@@ -1649,14 +1666,19 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 			}
 
 		var word = line.match(/^[\w\$_]+/);
-		if(this.keywords[word[0]])
+		if(word && this.keywords[word[0]])
 			return {
 				style: this.keywords[word[0]],
 				string: word[0]
 			}
+		if(word)
+			return {
+				style: null,
+				string: word[0]
+			}
 		return {
 			style: null,
-			string: word[0]
+			string: line[0]
 		}
 	}
 });
