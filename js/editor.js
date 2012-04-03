@@ -908,7 +908,10 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.resetRight();
 	},
 	resetRight : function(){
-		this.muncher.innerHTML = this.doc.longest;
+		this.muncher.innerHTML = this.doc.longest
+				.replace(/&/g,'&amp;')
+				.replace(/</g,'&lt;')
+				.replace(/>/g,'&gt;');
 		this.view.lineWidth = this.muncher.offsetWidth;
 		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
 	},

@@ -374,6 +374,18 @@ body {
 	text-shadow: 0 0 2px rgba(0, 149, 198, 0);
 }
 
+/* =Shameless Monokai Ripoff
+*************************************************/
+.editor .window { background: #272822 }
+.editor .window .line { color: #F8F8F2 }
+.editor .window .line-marker .select { background: #49483E }
+.editor span.keyword { color: #66D9EF }
+.editor span.comment { color: #75715E }
+.editor span.operator { color: #F92672 }
+.editor span.number { color: #AE81FF }
+.editor span.string { color: #E6DB74 }
+.editor span.atom { color: #FD971F }
+
 /* =MediaQueries!
 *************************************************/
 @media screen and (max-width: 640px){
