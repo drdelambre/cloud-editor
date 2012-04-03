@@ -3,193 +3,6 @@
   src: url("../fonts/Inconsolata.otf");
 }
 
-@keyframes blink {
-	0%	{ opacity: 1; }
-	90%	{ opacity: 0; }
-	100%	{ opacity: 1; }
-}
-
-@-moz-keyframes blink {
-	0%	{ opacity: 1; }
-	90%	{ opacity: 0; }
-	100%	{ opacity: 1; }
-}
-
-@-webkit-keyframes blink {
-	0%	{ opacity: 1; }
-	90%	{ opacity: 0; }
-	100%	{ opacity: 1; }
-}
-
-body {
-	margin: 0;
-	padding: 0;
-	background: #e0e0c8;
-}
-
-/* =FileEditor
-*************************************************/
-.file-editor {
-	position: absolute;
-	top: 50%;
-	height: 21em;
-	left: 50%;
-	margin-left: -40%;
-	margin-top: -10em;
-	box-sizing: border-box;
-	width: 80%;
-	font-family: sans-serif;
-
-	-webkit-perspective: 3000px;
-	-moz-perspective: 3000px;
-	-ms-perspective: 3000px;
-	-o-perspective: 3000px;
-	perspective: 3000px;
-}
-
-.file-editor .settings,
-.file-editor .editor {
-	height: 20em;
-	display: block;
-	width: 100%;
-	position: absolute;
-	box-sizing: border-box;
-	box-shadow: 0 3px 8px rgba(0,0,0,0.4);
-	z-index: 4;
-
-	-webkit-backface-visibility: hidden;
-	-moz-backface-visibility: hidden;
-	-ms-backface-visibility: hidden;
-	-o-backface-visibility: hidden;
-	backface-visibility: hidden;
-
-	-webkit-transition: -webkit-transform 0.8s;
-	-moz-transition: -moz-transform 0.8s;
-	-ms-transition: -ms-transform 0.8s;
-	-o-transition: -o-transform 0.8s;
-	transition: transform 0.8s;
-
-	-webkit-transform-style: preserve-3d;
-	-moz-transform-style: preserve-3d;
-	-ms-transform-style: preserve-3d;
-	-o-transform-style: preserve-3d;
-	transform-style: preserve-3d;
-
-	-webkit-transform-style: preserve-3d;
-	-moz-transform-style: preserve-3d;
-	-ms-transform-style: preserve-3d;
-	-o-transform-style: preserve-3d;
-	transform-style: preserve-3d;
-}
-
-.file-editor .settings {
-	border-radius: 0.8em;
-	font-family: mono;
-	z-index: 6;
-	background: #272822;
-
-	-webkit-transform: rotateX(-180deg);
-	   -moz-transform: rotateX(-180deg);
-	    -ms-transform: rotateX(-180deg);
-	     -o-transform: rotateX(-180deg);
-	        transform: rotateX(-180deg);
-}
-
-.file-editor.edit .settings {
-	-webkit-transform: rotateX(0deg);
-	   -moz-transform: rotateX(0deg);
-	    -ms-transform: rotateX(0deg);
-	     -o-transform: rotateX(0deg);
-	        transform: rotateX(0deg);
-}
-
-.file-editor.edit .editor {
-	-webkit-transform: rotateX(180deg);
-	   -moz-transform: rotateX(180deg);
-	    -ms-transform: rotateX(180deg);
-	     -o-transform: rotateX(180deg);
-	        transform: rotateX(180deg);
-}
-
-
-.file-editor .settings h1 {
-	border-radius: 0.3em 0.3em 0 0;
-	background: #87A96B;
-	color: #E8E8EF;
-	margin: 0;
-	text-indent: 1em;
-	padding: 0.2em 0;
-}
-
-.file-editor .settings div {
-	position: relative;
-	font-size: 2em;
-	top: 50%;
-	margin-top: -1em;
-	color: #F8F8F2;
-	text-align: center;
-}
-
-.file-editor .settings span {
-	color: #555;
-}
-
-.file-editor .footer {
-	position: absolute;
-	width: 100%;
-	bottom: 0;
-	box-sizing: border-box;
-	padding: 0 0.5em;
-}
-
-.file-editor .footer .line-count {
-	float: right;
-	font-size: 0.7em;
-	color: #888;
-	padding-top: 0.4em;
-}
-
-.file-editor .footer .line-count span {
-	color: #000;
-	margin-right: 0.2em;
-	width: 2.2em;
-	display: inline-block;
-	text-align: right;
-}
-
-.file-editor .footer .line-count input {
-	font-family: inherit;
-	font-size: inherit;
-	text-align: right;
-	width: 2.2em;
-	background: rgba(0,0,0,0.05);
-	color: #000;
-	border: 1px solid #aaa;
-	border-radius: 0.4em;
-	margin: 0;
-	padding: 0;
-	margin-left: 0.2em;
-	margin-top: -1px;
-	outline: none;
-}
-
-.file-editor .footer .line-count input::-moz-selection,
-.file-editor .footer .line-count input::selection {
-	background: #ffb46c;
-}
-
-.file-editor .footer .set-button {
-	float: left;
-	font-size: 0.8em;
-	color: #888;
-	padding: 0.1em 0.5em 0;
-	cursor: pointer;
-}
-
-.file-editor .footer .set-button.selected {
-	color: #000;
-}
-
 /* =Editor
 *************************************************/
 .editor {
@@ -383,6 +196,18 @@ body {
 	outline: none;
 	text-shadow: 0 0 0 transparent;
 	color: #000;
+
+	-webkit-transition: color 0.5s,text-shadow 0.5s;
+	   -moz-transition: color 0.5s,text-shadow 0.5s;
+	     -o-transition: color 0.5s,text-shadow 0.5s;
+	        transition: color 0.5s,text-shadow 0.5s;
+}
+
+.editor .window .line span {
+	-webkit-transition: color 0.5s,text-shadow 0.5s;
+	   -moz-transition: color 0.5s,text-shadow 0.5s;
+	     -o-transition: color 0.5s,text-shadow 0.5s;
+	        transition: color 0.5s,text-shadow 0.5s;
 }
 
 .editor .content span.folded {
@@ -417,71 +242,17 @@ body {
 	color: #fff;
 }
 
-/* =Default Theme
+/* =Shameless Monokai Ripoff
 *************************************************/
 .editor .gutter {
 	color: #e8e8ef;
 	background: #87A96B;
 }
-
-.editor .window .line {
-	color: rgba(70,70,70,1);
-	text-shadow: 0 0 2px rgba(0,0,0,0);
-}
-
-.editor .window .cursor .zoom:after,
-.editor .window .cursor .marker {
-	background: #aaa
-}
-
-.editor .line,
-.editor .line span {
-	-webkit-transition: color 0.5s,text-shadow 0.5s;
-	   -moz-transition: color 0.5s,text-shadow 0.5s;
-	     -o-transition: color 0.5s,text-shadow 0.5s;
-	        transition: color 0.5s,text-shadow 0.5s;
-}
-
-.editor span.folded {
-	color: rgba(170, 170, 170, 1);
-	text-shadow: 0 0 2px rgba(170, 170, 170, 0);
-}
-
-.editor span.keyword {
-	color: rgba(0, 191, 255, 1);
-	text-shadow: 0 0 2px rgba(0, 191, 255, 0);
-}
-.editor span.string {
-	color: rgba(255, 0, 0, 1);
-	text-shadow: 0 0 2px rgba(255, 0, 0, 0);
-}
-.editor span.comment {
-	color: rgba(170, 170, 170, 1);
-	text-shadow: 0 0 2px rgba(170, 170, 170, 0);
-}
-.editor span.regex {
-	color: rgba(253, 168, 23, 1);
-	text-shadow: 0 0 2px rgba(253, 168, 23, 0);
-}
-.editor span.number {
-	color: rgba(174, 129, 255, 1);
-	text-shadow: 0 0 2px rgba(255, 140, 0, 0);
-}
-.editor span.operator {
-	color: rgba(136, 85, 85, 1);
-	text-shadow: 0 0 2px rgba(136, 85, 85, 0);
-}
-.editor span.atom {
-	color: rgba(0, 130, 179, 1);
-	text-shadow: 0 0 2px rgba(0, 149, 198, 0);
-}
-
-/* =Shameless Monokai Ripoff
-*************************************************/
 .editor .window { background: #272822 }
 .editor .window .line { color: #F8F8F2 }
 .editor .window .line-marker { background: #302f29 }
 .editor .window .line-marker .select { background: #49483E }
+.editor .window .cursor .marker { background: #aaa }
 .editor span.keyword { color: #66D9EF }
 .editor span.comment { color: #75715E }
 .editor span.operator { color: #F92672 }
@@ -489,17 +260,3 @@ body {
 .editor span.string { color: #E6DB74 }
 .editor span.atom { color: #FD971F }
 
-/* =MediaQueries!
-*************************************************/
-@media screen and (max-width: 640px){
-	.file-editor {
-		padding: 0;
-		font-size: 0.8em;
-	}
-	
-	.editor,
-	.editor:before,
-	.editor .gutter {
-		border-radius: 0;
-	}
-}

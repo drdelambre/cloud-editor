@@ -3,10 +3,170 @@
 <head>
 	<title>editor test</title>
 	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<style type="text/css">
+		body {
+			margin: 0;
+			padding: 0;
+			background: #e0e0c8;
+		}
+
+		/* =MediaQueries!
+		*************************************************/
+		@media screen and (max-width: 640px){
+			.file-editor {
+				padding: 0;
+				font-size: 0.8em;
+			}
+			
+			.editor,
+			.editor:before,
+			.editor .gutter {
+				border-radius: 0;
+			}
+		}
+	</style>
 	<link href="images/favicon.png" rel="icon" type="image/png" />
+	<link rel="stylesheet" type="text/css" href="css/file-editor.css" />
 	<link rel="stylesheet" type="text/css" href="css/editor.css" />
 	<script type="text/javascript" src="http://192.168.1.120:8084/target/target-script-min.js#anonymous"></script>
+	<script type="text/javascript">
+var drdelambre = drdelambre || {
+	cache: {},
+	debug: true,
+	debugTouch: false,
+	inst_id: -1,
+
+	publish : function(topic, args){
+		if(Object.prototype.toString.apply(args) !== '[object Array]')
+			args = [args];
+	
+		var cache = drdelambre.cache,
+			ni, t;
+		for(t in cache){
+			if(topic.match(new RegExp(t)))
+				for(ni = cache[t].length; ni!=0;)
+					cache[t][--ni].apply(drdelambre, args || []);
+		}
+	},
+	subscribe : function(topic, callback){
+		var cache = drdelambre.cache;
+		topic = '^' + topic.replace(/\*/,'.*');
+		if(!cache[topic])
+			cache[topic] = [];
+		cache[topic].push(callback);
+		return [topic, callback];
+	},
+	unsubscribe : function(handle){
+		var cache = drdelambre.cache,
+			t = handle[0];
+		if(!cache[t]) return;
+		for(var ni in cache[t])
+			if(cache[t][ni] == handle[1])
+				cache[t].splice(ni, 1);
+	},
+	class : function(proto){
+		var id = ++drdelambre.inst_id;
+		var fun = function(){
+			if(!(this instanceof arguments.callee))
+				throw new Error('drdelambre.class: not called as a constructor (try adding "new")');
+			for(var member in proto){
+				if(typeof proto[member] !== 'function')
+					this[member] = proto[member];
+				else
+					this[member] = drdelambre.bind(proto[member],this);
+			}
+			this['__inst_id__'] = id;
+			if(this.init) this.init.apply(this,arguments);
+		};
+
+		fun.prototype = proto || {};
+		return fun;
+	},
+	extend : function() {
+		var options, name, src, copy, copyIsArray, clone,
+			target = arguments[0] || {},
+			length = arguments.length;
+	
+		for(var i = 1; i < length; i++ ){
+			if((options = arguments[ i ]) != null){
+				for(name in options){
+					src = target[ name ];
+					copy = options[ name ];
+	
+					if(target === copy)
+						continue;
+	
+					if(copy !== undefined)
+						target[name] = copy;
+				}
+			}
+		}
+		return target;
+	},
+	bind : function(obj, context){
+		var args = Array.prototype.slice.call(arguments, 2);
+		return function(){
+			return obj.apply(context, args.concat(Array.prototype.slice.call(arguments)));
+		};
+	}
+};
+drdelambre.extend(drdelambre,{
+	get isTouch() {
+		if(drdelambre.debugTouch)
+			return true;
+		return !!('ontouchend' in document) ? true : false;
+	},
+	getOffset : function(elem){
+		var box = elem.getBoundingClientRect();
+		if(!box)
+			return { top: 0, left: 0 };
+	
+		var body = elem.ownerDocument.body,
+			clientTop  = document.documentElement.clientTop  || body.clientTop  || 0,
+			clientLeft = document.documentElement.clientLeft || body.clientLeft || 0,
+			scrollTop  = window.pageYOffset || document.documentElement.scrollTop  || body.scrollTop,
+			scrollLeft = window.pageXOffset || document.documentElement.scrollLeft || body.scrollLeft,
+			top  = box.top  + scrollTop  - clientTop,
+			left = box.left + scrollLeft - clientLeft;
+	
+		return { top: top, left: left };
+	},
+	ajax : function(options){
+		options = drdelambre.extend({
+			url: '',
+			method: 'get',
+			success: null,
+			error: null,
+			async: true
+		}, options);
+	
+		if(window.XDomainRequest){
+			var req = new window.XDomainRequest();
+			if(options.success)
+				req.onload = function(){ options.success(req.responseText); };
+			if(options.error)
+				req.onerror = function(){ options.error(req.responeText); };
+			
+			req.open(options.method, options.url);
+			req.send();
+		} else {
+			var req = new XMLHttpRequest();
+			req.onreadystatechange = function(){
+				if(req.readyState == 4){
+					if(req.status == 200 && options.success)
+						options.success(req.responseText);
+					else if(req.status != 200 && options.error)
+						options.error(req.responseText);
+				}
+			};
+			req.open(options.method, options.url, options.async);
+			req.send();
+		}
+	}
+});
+	</script>
 	<script type="text/javascript" src="js/editor.js"></script>
+	<script type="text/javascript" src="js/file-editor.js"></script>
 </head>
 <body>
 	<div class="file-editor">
@@ -27,7 +187,48 @@
 		</div>
 		<div class="settings">
 			<h1>settings</h1>
-			<div><span>...</span>to be completed at a later date<span>...</span></div>
+			<div class="left">
+				<h1>editor preview</h1>
+				<div class="preview editor">
+					<div class="gutter">
+						<div class="line">1</div>
+						<div class="line">2</div>
+						<div class="line">3</div>
+						<div class="line">4</div>
+						<div class="line">5</div>
+						<div class="line">6</div>
+						<div class="line">7</div>
+						<div class="line">8</div>
+						<div class="line">9</div>
+						<div class="line">10</div>
+						<div class="line">11</div>
+					</div>
+					<div class="window">
+						<div class="line-marker">
+							<div class="select"></div>
+							<div class="cursor"><div class="marker"></div><div class="tag"></div></div>
+						</div>
+						<div class="content">
+							<div class="line"><span class="keyword">var</span> drdelambre <span class="operator">=</span> drdelambre <span class="operator">|</span><span class="operator">|</span> {</div><div class="line">    cache: {},</div>
+							<div class="line"><span class="tab">    </span>debug: <span class="atom">true</span>,</div>
+							<div class="line"><span class="tab">    </span>debugTouch: <span class="atom">false</span>,</div>
+							<div class="line"><span class="tab">    </span>inst_id: <span class="operator">-</span><span class="number">1</span>,</div>
+							<div class="line"></div>
+							<div class="line"><span class="tab">    </span>publish : <span class="keyword">function</span>(topic, args){</div>
+							<div class="line"><span class="tab">    </span><span class="tab">    </span><span class="keyword">if</span>(Object.prototype.<span class="function toString() { [native code] }">toString</span>.apply(args) <span class="operator">!</span><span class="operator">=</span><span class="operator">=</span> <span class="string">'[object Array]'</span>)</div>
+							<div class="line"><span class="tab">    </span><span class="tab">    </span><span class="tab">    </span>args <span class="operator">=</span> [args];</div>
+							<div class="line"><span class="comment">//here's a comment</span></div>
+						</div>
+					</div>
+				</div>
+			</div>
+			<div class="right">
+				<div class="help">
+					<div><-----------------------</div>
+					click on the editor to configure its look
+					<div><-----------------------</div>
+				</div>
+			</div>
 		</div>
 		<div class="footer">
 			<div class="line-count">line:<span>1</span> char:<span>0</span></div>
