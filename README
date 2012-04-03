@@ -1,12 +1,9 @@
 What can i say... it's a text editor!
-This one uses a bunch of hacks that are different from ACE or CodeMirror to allow
-it's use on iOS and android devices, as well as the desktop! It's a stand-alone library
-so you can embed it anywhere that allows javascript. As far as features, it supports
-syntax highlighting and a cool little diddle where you can drag and drop fonts into it
-to change the look.
+This one uses a bunch of hacks that are different from ACE or CodeMirror to allow it's use on iOS and android devices, as well as the desktop! It's a stand-alone library so you can embed it anywhere that allows javascript. As far as features, it supports syntax highlighting and a cool little diddle where you can drag and drop fonts into it to change the look.
 
 Next on the chopping block:
 	mobile cut and paste
+	code folding / soft-wrap
 	differential synchronization api of document
 	editor settings ( theme editor / syntax language chooser / tab-spacing )
 	multiple file support
