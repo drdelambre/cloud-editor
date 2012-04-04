@@ -182,7 +182,10 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0],
 			help = this.element.getElementsByClassName('settings')[0]
 				.getElementsByClassName('right')[0]
-				.getElementsByClassName('help')[0];
+				.getElementsByClassName('help')[0],
+			menu = this.element.getElementsByClassName('settings')[0]
+				.getElementsByClassName('right')[0]
+				.getElementsByClassName('menu');
 
 		if(/selected/.test(elem.className)){
 			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
@@ -191,6 +194,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			elem.className += ' selected';
 			this.element.className += ' edit';
 			help.style.display = '';
+			if(menu.length) menu[0].parentNode.removeChild(menu[0]);
 		}
 	},
 	settingsClick : function(evt){
