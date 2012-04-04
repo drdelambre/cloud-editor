@@ -194,8 +194,6 @@
 	white-space: pre;
 	position: relative;
 	outline: none;
-	text-shadow: 0 0 0 transparent;
-	color: #000;
 
 	-webkit-transition: color 0.5s,text-shadow 0.5s;
 	   -moz-transition: color 0.5s,text-shadow 0.5s;
@@ -246,17 +244,19 @@
 *************************************************/
 .editor .gutter {
 	color: #e8e8ef;
-	background: #87A96B;
+	background: #87A96B
 }
-.editor .window { background: #272822 }
-.editor .window .line { color: #F8F8F2 }
+.editor .window {
+	color: #F8F8F2;
+	background: #272822
+}
 .editor .window .line-marker { background: #302f29 }
 .editor .window .line-marker .select { background: #49483E }
 .editor .window .cursor .marker { background: #aaa }
+
 .editor span.keyword { color: #66D9EF }
 .editor span.comment { color: #75715E }
 .editor span.operator { color: #F92672 }
 .editor span.number { color: #AE81FF }
 .editor span.string { color: #E6DB74 }
 .editor span.atom { color: #FD971F }
-

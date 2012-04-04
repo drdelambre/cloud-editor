@@ -87,30 +87,37 @@
 	        transform: rotateX(180deg);
 }
 
+.file-editor .settings .editor {
+    -webkit-transform: none;
+       -moz-transform: none;
+        -ms-transform: none;
+         -o-transform: none;
+            transform: none;
+    height: auto;
+    position: static;
+    box-shadow: none;
+    background: transparent;
+}
 
 .file-editor .settings h1 {
 	border-radius: 0.3em 0.3em 0 0;
-	background: #87A96B;
-	color: #E8E8EF;
 	margin: 0;
 	text-indent: 1em;
 	padding: 0.2em 0;
+	color: #e8e8ef;
+	background: #87A96B;
 }
 
 .file-editor .settings .preview {
-    height: 13em;
+    height: auto;
     width: auto;
-    -webkit-transform: none;
     position: relative;
-    margin: 1em 1em 0;
     font-size: 0.8em;
-    box-shadow: none;
-    border: 2px solid #555;
     cursor: pointer;
 }
 
+.file-editor .settings .preview .gutter { border-radius: 0; }
 .file-editor .settings .preview .line { cursor: pointer; }
-
 .file-editor .settings .preview .line-marker { top: 2.6em }
 .file-editor .settings .preview .line-marker .select { width: 5em }
 .file-editor .settings .preview .line-marker .cursor { left: 4.3em }
@@ -118,14 +125,17 @@
 .file-editor .settings .left {
 	width: 50%;
 	float: left;
-	padding-top: 1em
+	padding-top: 1em;
+	height: 15em;
+	overflow: hidden;
 }
 
 .file-editor .settings .left h1 {
 	border-radius: 0;
-	background: transparent;
 	font-size: 1.5em;
-	border-bottom: 1px solid #87a96b;
+	padding: 0;
+	background: transparent;
+	border-bottom: 1px solid #87A96B;
 }
 
 .file-editor .settings .right { overflow: hidden }
@@ -138,6 +148,56 @@
 
 .file-editor .settings .right .help div {
 	color: #555;
+}
+
+.file-editor .settings .right .menu {
+	text-align: center;
+	margin: 5em auto 0;
+	overflow: hidden;
+	width: 24em;
+	background: #33332c;
+	padding-bottom: 0.5em;
+	border-radius: 0.5em;
+}
+
+.file-editor .settings .right .menu h1 {
+	margin: 0 0 0.3em;
+	border-bottom: 1px solid #404040;
+	background: transparent;
+	font-size: 1.5em;
+	text-align: left;
+}
+
+.file-editor .settings .right .menu h1 span {
+	color: #fff;
+}
+
+.file-editor .settings .right .menu .title {
+	display: inline-block;
+	margin-right: 0.5em;
+	color: #888;
+}
+
+.file-editor .settings .right .menu input {
+	border: 2px solid #eee;
+	background: #eee;
+	border-radius: 0.5em;
+	font-size: 1.2em;
+	outline: none;
+	padding: 0.2em 0.5em;
+	text-align: right;
+	font-family: inherit;
+	width: 6em;
+
+	-webkit-transition: border-color 0.3s;
+	   -moz-transition: border-color 0.3s;
+	    -ms-transition: border-color 0.3s;
+	     -o-transition: border-color 0.3s;
+	        transition: border-color 0.3s;
+}
+
+.file-editor .settings .right .menu input.invalid {
+	border: 2px solid #c00;
 }
 
 .file-editor .footer {

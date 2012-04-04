@@ -65,6 +65,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		cursor[1].addEventListener('dblclick', this.openChar, false);
 		
 		this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0].addEventListener('mousedown', this.toggleSettings, false);
+		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.settingsClick, false);
+		
+		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
 	},
 	get editor(){
 		return this.editors[this.curr];
@@ -76,7 +79,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		count[1].innerHTML = line.char;
 	},
 
-	openLine : function(evt){				//jFree
+	openLine : function(evt){
 		var elem = evt.target,
 			inp = document.createElement('input');
 
@@ -176,14 +179,120 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	},
 	
 	toggleSettings : function(evt){
-		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0];
+		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0],
+			help = this.element.getElementsByClassName('settings')[0]
+				.getElementsByClassName('right')[0]
+				.getElementsByClassName('help')[0];
+
 		if(/selected/.test(elem.className)){
 			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
 			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
 		} else {
 			elem.className += ' selected';
 			this.element.className += ' edit';
+			help.style.display = '';
 		}
+	},
+	settingsClick : function(evt){
+		var help = this.element.getElementsByClassName('settings')[0]
+				.getElementsByClassName('right')[0]
+				.getElementsByClassName('help')[0];
+		if(help.style.display != 'none')
+			help.style.display = 'none';
+		var elem = evt.target;
+		while(elem != document.body){
+			if(elem.nodeType == 1 &&
+				(elem.nodeName.toLowerCase() == 'span' ||
+				 elem.className == 'window' ||
+				 elem.className == 'gutter' ||
+				 elem.className == 'select' ||
+				 elem.className == 'line-marker'))
+				break;
+			if(!elem.parentNode)
+				elem = document.body;
+			else
+				elem = elem.parentNode;
+		}
+		
+		if(elem == document.body) return;
+		this.change(elem);
+	},
+	change : function(elem){
+		var menu = this.element.getElementsByClassName('settings')[0].getElementsByClassName('menu');
+		if(!menu.length){
+			var men = document.createElement('div');
+			men.className = 'menu';
+			men.innerHTML = '<h1></h1><div class="row"><div class="title">font color</div><input></div><div class="row"><div class="title">background</div><input></div>';
+			var inps = men.getElementsByTagName('input');
+			inps[0].addEventListener('input', this.validateColor, false);
+			inps[1].addEventListener('input', this.validateColor, false);
+			this.element.getElementsByClassName('settings')[0].getElementsByClassName('right')[0].appendChild(men);
+			menu = men;
+		} else
+			menu = menu[0];
+
+		if(elem.className == 'tab'){
+			return;
+		}
+
+		menu.getElementsByTagName('h1')[0].innerHTML = 'Element: <span>' + elem.className + '</span>';
+		var inps = menu.getElementsByTagName('input'),
+			style = document.defaultView.getComputedStyle(elem,null);
+		inps[0].value = this.normalizeColor(style.getPropertyValue('color'));
+		inps[1].value = this.normalizeColor(style.getPropertyValue('background-color'));
+	},
+	apply : function(){
+		var inps = this.element
+				.getElementsByClassName('settings')[0]
+				.getElementsByClassName('menu')[0]
+				.getElementsByTagName('input'),
+			elem = this.element
+				.getElementsByClassName('settings')[0]
+				.getElementsByClassName('menu')[0]
+				.getElementsByTagName('h1')[0]
+				.getElementsByTagName('span')[0]
+				.innerHTML,
+			style = document.styleSheets[document.styleSheets.length - 1],
+			index = style.cssRules.length,
+			rule = ".editor " + (elem!='window'&&elem!='gutter'?'span':'') + "." + elem + " {";
+		if(inps[0].value.length && !inps[0].className.match(/invalid/))
+			rule += "color:#" + inps[0].value.replace(/#/g,'') + ';'
+		if(inps[1].value.length && !inps[1].className.match(/invalid/))
+			rule += "background:#" + inps[1].value.replace(/#/g,'') + ';'
+		rule += "}";
+		style.insertRule(rule, index);
+	},
+	normalizeColor : function(colorStr){
+		var hex = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'];
+		if(colorStr.match(/transparent/i) || colorStr.match(/rgba\(\s*0,\s*0,\s*0,\s*0\)/))
+			return '';
+		if(/rgb[a]?\((\s*\d*[,]?){3,4}\)/.test(colorStr)){
+			var colors = colorStr
+					.replace(/^rgb[a]?\(/, '')
+					.replace(/\)\s*$/, '')
+					.replace(/\s*,\s*/g, ',')
+					.split(','),
+					f = l = '0';
+			return	hex[(colors[0]/16)&~0] + hex[colors[0]%16] +
+					hex[(colors[1]/16)&~0] + hex[colors[1]%16] +
+					hex[(colors[2]/16)&~0] + hex[colors[2]%16];
+		}
+		if(/^#?[\da-fA-F]{3,3}$/.test(colorStr)){
+			var colors = colorStr.replace(/#/g, '').split('');
+			return colors[0] + colors[0] + colors[1] + colors[1] + colors[2] + colors[2];
+		} else if(!/^#?[\da-fA-F]{6}$/.test(colorStr))
+			return ''
+		return colorStr.replace(/#/, '');
+	},
+	validateColor : function(evt){
+		if(!evt.target.value.length || /^#?([\da-fA-F]{3}|[\da-fA-F]{6})$/.test(evt.target.value)){
+			evt.target.className = evt.target.className.replace(/\s*invalid/g,'');
+			drdelambre.editor.publish('/editor/settings/color');
+			return true;
+		}
+		if(!evt.target.className.match(/invalid/))
+			evt.target.className += ' invalid';
+		return false;
 	},
 	
 	hover : function(evt){
