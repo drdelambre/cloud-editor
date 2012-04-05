@@ -690,10 +690,10 @@ drdelambre.editor.Pager = new drdelambre.class({
 			y = e.wheelDeltaY;
 		} else if('detail' in e){
 			if(e.axis === 2){
-				y = -e.detail;
+				y = -e.detail * 5;
 				x = 0;
 			} else {
-				x = -e.detail;
+				x = -e.detail * 5;
 				y = 0;
 			}
 		} else {

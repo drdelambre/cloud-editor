@@ -143,7 +143,8 @@
 	color: #ccc;
 	font-size: 1.5em;
 	text-align: center;
-	margin: 4em 5em 0;
+	margin: 4em auto 0;
+	width: 12.5em;
 }
 
 .file-editor .settings .right .help div {
