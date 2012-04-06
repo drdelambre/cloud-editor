@@ -8,7 +8,7 @@
 .file-editor {
 	position: absolute;
 	top: 50%;
-	height: 21em;
+	height: 21.5em;
 	left: 50%;
 	margin-left: -40%;
 	margin-top: -10em;
@@ -207,13 +207,14 @@
 	bottom: 0;
 	box-sizing: border-box;
 	padding: 0 0.5em;
+	text-align: center;
 }
 
 .file-editor .footer .line-count {
 	float: right;
 	font-size: 0.7em;
 	color: #888;
-	padding-top: 0.4em;
+	padding-top: 0.2em;
 }
 
 .file-editor .footer .line-count span {

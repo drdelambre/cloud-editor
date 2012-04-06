@@ -28,7 +28,6 @@
 	<link href="images/favicon.png" rel="icon" type="image/png" />
 	<link rel="stylesheet" type="text/css" href="css/file-editor.css" />
 	<link rel="stylesheet" type="text/css" href="css/editor.css" />
-	<script type="text/javascript" src="http://192.168.1.120:8084/target/target-script-min.js#anonymous"></script>
 	<script type="text/javascript">
 var drdelambre = drdelambre || {
 	cache: {},
@@ -213,7 +212,8 @@ drdelambre.extend(drdelambre,{
 							<div class="cursor"><div class="marker"></div><div class="tag"></div></div>
 						</div>
 						<div class="content">
-							<div class="line"><span class="keyword">var</span> drdelambre <span class="operator">=</span> drdelambre <span class="operator">|</span><span class="operator">|</span> {</div><div class="line">    cache: {},</div>
+							<div class="line"><span class="keyword">var</span> drdelambre <span class="operator">=</span> drdelambre <span class="operator">|</span><span class="operator">|</span> {</div>
+							<div class="line"><span class="tab">    </span>cache: {},</div>
 							<div class="line"><span class="tab">    </span>debug: <span class="atom">true</span>,</div>
 							<div class="line"><span class="tab">    </span>debugTouch: <span class="atom">false</span>,</div>
 							<div class="line"><span class="tab">    </span>inst_id: <span class="operator">-</span><span class="number">1</span>,</div>
@@ -237,11 +237,15 @@ drdelambre.extend(drdelambre,{
 		<div class="footer">
 			<div class="line-count">line:<span>1</span> char:<span>0</span></div>
 			<div class="set-button">settings</div>
+			<select>
+				<option>choose a language</option>
+				<option>-----------------</option>
+			</select>
 		</div>
 	</div>
 </body>
 	<script type="text/javascript">
 	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
-	edit.editor.doc.fromURL('http://192.168.1.120/editor/js/editor.js');
+	edit.editor.doc.fromURL('js/editor.js');
 	</script>
 </html>

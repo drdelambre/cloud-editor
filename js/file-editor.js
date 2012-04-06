@@ -65,6 +65,19 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		cursor[1].addEventListener('dblclick', this.openChar, false);
 		
 		this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0].addEventListener('mousedown', this.toggleSettings, false);
+		var select = this.element.getElementsByClassName('footer')[0].getElementsByTagName('select')[0],
+			ni = 0;
+		for(var lang in drdelambre.editor.mode){
+			if(lang == 'Javascript') ni = select.getElementsByTagName('option').length;
+			var opt = document.createElement('option');
+			opt.value = lang;
+			opt.innerHTML = lang;
+			select.appendChild(opt);
+		}
+		
+		select.selectedIndex = ni;
+		select.addEventListener('change', this.languageChange, false);
+		
 		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.settingsClick, false);
 		
 		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
@@ -226,24 +239,48 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		if(!menu.length){
 			var men = document.createElement('div');
 			men.className = 'menu';
-			men.innerHTML = '<h1></h1><div class="row"><div class="title">font color</div><input></div><div class="row"><div class="title">background</div><input></div>';
+			men.innerHTML = '<h1></h1><div class="tab" style="display:none"><div class="row"><div class="title">tab-space</div><input type="number" min="1"></div></div><div class="other"><div class="row"><div class="title">font color</div><input></div><div class="row"><div class="title">background</div><input></div></div>';
 			var inps = men.getElementsByTagName('input');
-			inps[0].addEventListener('input', this.validateColor, false);
+			inps[0].addEventListener('input', this.setTab, false);
 			inps[1].addEventListener('input', this.validateColor, false);
+			inps[2].addEventListener('input', this.validateColor, false);
 			this.element.getElementsByClassName('settings')[0].getElementsByClassName('right')[0].appendChild(men);
 			menu = men;
 		} else
 			menu = menu[0];
+			
+		var tab = menu.getElementsByClassName('tab')[0],
+			other = menu.getElementsByClassName('other')[0];
+
+		menu.getElementsByTagName('h1')[0].innerHTML = 'Element: <span>' + elem.className + '</span>';
 
 		if(elem.className == 'tab'){
+			var inps = menu.getElementsByTagName('input');
+			tab.style.display = '';
+			other.style.display = 'none';
+
+			inps[0].value = drdelambre.editor.settings.tabLength;			
 			return;
 		}
 
-		menu.getElementsByTagName('h1')[0].innerHTML = 'Element: <span>' + elem.className + '</span>';
+		tab.style.display = 'none';
+		other.style.display = '';
 		var inps = menu.getElementsByTagName('input'),
 			style = document.defaultView.getComputedStyle(elem,null);
-		inps[0].value = this.normalizeColor(style.getPropertyValue('color'));
-		inps[1].value = this.normalizeColor(style.getPropertyValue('background-color'));
+		inps[1].value = this.normalizeColor(style.getPropertyValue('color'));
+		inps[2].value = this.normalizeColor(style.getPropertyValue('background-color'));
+	},
+	setTab : function(evt){
+		var num = parseInt(evt.target.value);
+		if(isNaN(num) || num < 1) return;
+		drdelambre.editor.settings.tabLength = num;
+		var menu = this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].getElementsByTagName('span');
+		for(var ni = 0; ni < menu.length; ni++){
+			if(!menu[ni].className.match(/tab/))
+				continue;
+			menu[ni].innerHTML = Array(num + 1).join(' ');
+		}
+		this.editor.pager.updateLine(this.editor.doc, 0);
 	},
 	apply : function(){
 		var inps = this.element
@@ -297,6 +334,11 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		if(!evt.target.className.match(/invalid/))
 			evt.target.className += ' invalid';
 		return false;
+	},
+	languageChange : function(evt){
+		var lang = evt.target.options[evt.target.selectedIndex].value;
+		this.editor.doc.mode = new drdelambre.editor.mode[lang]();
+		this.editor.pager.updateLine(this.editor.doc, 0);
 	},
 	
 	hover : function(evt){

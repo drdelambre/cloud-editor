@@ -603,15 +603,31 @@ drdelambre.editor.Pager = new drdelambre.class({
 		if(
 			!_doc ||
 			_doc.__inst_id__ != this.doc.__inst_id__ ||
-			index < this.view.start - 2 ||
 			index > this.view.end + 2
 		)
 			return;
 
 		if(index == this.view.start) index -= 2;
-		var start = index - this.view.start + 2
-		while(index < this.view.end + 2)
-			this.element.getElementsByClassName('line')[start++].innerHTML = (++index <= 0?'':this.doc.getFormattedLine(index-1));
+		var start = index - this.view.start + 2,
+			state = index < 1?null:this.doc.lines[index - 1]._state;
+		while(index < this.view.end + 2){
+			if(index < 0){
+				index++;
+				if(start++ > 0)
+					this.element.getElementsByClassName('line')[start - 1].innerHTML = '';
+				continue;
+			}
+			this.doc.lines[index]._state = state;
+			state = this.doc.lines[index].format(this.doc.mode);
+			if(start++ > 0)
+				this.element.getElementsByClassName('line')[start-1].innerHTML = this.doc.getFormattedLine(index);
+			index++;
+		}
+		
+		while(state != this.doc.lines[index++]._state){
+			this.doc.lines[index]._state = state;
+			state = this.doc.lines[index++].format(this.doc.mode);
+		}
 
 		this.resetRight();
 	},
@@ -619,7 +635,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.muncher.innerHTML = this.doc.longest
 				.replace(/&/g,'&amp;')
 				.replace(/</g,'&lt;')
-				.replace(/>/g,'&gt;');
+				.replace(/>/g,'&gt;')
+				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength).join(' '));
 		this.view.lineWidth = this.muncher.offsetWidth;
 		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
 	},
@@ -898,8 +915,12 @@ drdelambre.editor.Document = new drdelambre.class({
 		var line,
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
-			if(lines[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
-				this.longest = lines[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+			if(	lines[ni]
+					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+				> this.longest
+					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+			)
+				this.longest = lines[ni];
 			line = new drdelambre.editor.Line(lines[ni]);
 			this.lines.push(line);
 		}
@@ -935,8 +956,12 @@ drdelambre.editor.Document = new drdelambre.class({
 			curr = 0;
 
 		for(var ni = 0; ni < text.length-1;ni++){
-			if(text[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
-				this.longest = text[ni].replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+			if(	text[ni]
+					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+				> this.longest
+					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+			)
+				this.longest = text[ni];
 			lines[curr++].text += text[ni];
 			state = lines[curr-1].format(this.mode);
 			lines.push(new drdelambre.editor.Line('',state));
@@ -947,8 +972,12 @@ drdelambre.editor.Document = new drdelambre.class({
 		lines[lines.length - 1]._state = state;
 		state = lines[lines.length - 1].format(this.mode);
 
-		if(lines[lines.length - 1].text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length > this.longest.length)
-			this.longest = lines[lines.length - 1].text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+		if(	lines[lines.length - 1].text
+				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+			> this.longest
+				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+		)
+			this.longest = lines[lines.length - 1].text;
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
 		pos.line = curr = pos.line + lines.length - 1;
