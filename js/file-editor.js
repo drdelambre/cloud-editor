@@ -61,8 +61,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		this.editor.element.addEventListener('drop', this.drop, false);
 		
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
-		cursor[0].addEventListener('dblclick', this.openLine, false);
-		cursor[1].addEventListener('dblclick', this.openChar, false);
+		cursor[0].addEventListener('mouseup', this.openLine, false);
+		cursor[1].addEventListener('mouseup', this.openChar, false);
 		
 		this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0].addEventListener('mousedown', this.toggleSettings, false);
 		var select = this.element.getElementsByClassName('footer')[0].getElementsByTagName('select')[0],
