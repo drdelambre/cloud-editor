@@ -79,7 +79,14 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		select.addEventListener('change', this.languageChange, false);
 		
 		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.settingsClick, false);
-		
+		var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry'),
+			closeTag = null;
+		for(var ni = 0; ni < closes.length; ni++){
+			closes[ni].addEventListener('mousedown', this.selectFile, false);
+			closeTag = closes[ni].getElementsByTagName('span');
+			if(closeTag.length) closeTag[0].addEventListener('mousedown', this.closeFile,false);
+		}
+
 		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
 	},
 	get editor(){
@@ -90,6 +97,34 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		var count = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		count[0].innerHTML = line.line + 1;
 		count[1].innerHTML = line.char;
+	},
+	
+	selectFile : function(evt){
+		if(evt.target.nodeName.toLowerCase() == 'span') return;
+		var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry');
+		for(var ni = 0; ni < closes.length; ni++)
+			closes[ni].className = closes[ni].className.replace(/\s*selected/g,'');
+		evt.target.className += ' selected';
+	},
+	closeFile : function(evt){
+		var elem = evt.target.parentNode;
+		if(elem.className.match(/selected/)){
+			var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry');
+			if(closes.length == 2){	//only file and open
+				return;
+			}
+			for(var ni = 1; ni < closes.length; ni++){
+				if(closes[ni] == elem){
+					if(ni == 1)
+						closes[2].className += ' selected';
+					else
+						closes[ni - 1].className += ' selected';
+					break;
+				}
+			}
+		}
+		elem.className += ' removed';
+		setTimeout(function(){ elem.parentNode.removeChild(elem); },500);
 	},
 
 	openLine : function(evt){
@@ -120,11 +155,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		
 		while(curr != document.body){
 			if(curr == elem) break;
-			if(!curr.parentNode){
-				curr = document.body;
-				break;
-			}
-			curr = curr.parentNode;
+			if(!curr.parentNode) curr = document.body;
+			else curr = curr.parentNode;
 		}
 
 		if(evt && curr != document.body)
@@ -171,7 +203,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		
 		while(curr != document.body){
 			if(curr == elem) break;
-			curr = curr.parentNode;
+			if(!curr.parentNode) curr = document.body;
+			else curr = curr.parentNode;
 		}
 
 		if(evt && curr != document.body)
@@ -375,3 +408,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	},
 });
 
+drdelambre.editor.File = new drdelambre.class({
+	name: '',
+	editor: null
+});
