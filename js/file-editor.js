@@ -49,12 +49,13 @@ drdelambre.editor = drdelambre.editor || {
  */
 drdelambre.editor.FileEditor = new drdelambre.class({
 	element: null,
-	editors: [],
-	curr: 0,
+	editor: null,
+	files: [],
+	curr: -1,
 
 	init : function(elem){
 		this.element = elem;
-		this.editors.push(new drdelambre.editor.Editor(this.element.getElementsByClassName('editor')[0]));
+		this.editor = new drdelambre.editor.Editor(this.element.getElementsByClassName('editor')[0]);
 		drdelambre.editor.subscribe('/editor/caret', this.updateCount);
 
 		this.editor.element.addEventListener('dragover', this.hover, false);
@@ -68,7 +69,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		var select = this.element.getElementsByClassName('footer')[0].getElementsByTagName('select')[0],
 			ni = 0;
 		for(var lang in drdelambre.editor.mode){
-			if(lang == 'Javascript') ni = select.getElementsByTagName('option').length;
+			if(lang == 'PlainText') ni = select.getElementsByTagName('option').length;
 			var opt = document.createElement('option');
 			opt.value = lang;
 			opt.innerHTML = lang;
@@ -89,42 +90,106 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 
 		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
 	},
-	get editor(){
-		return this.editors[this.curr];
+	open : function(path){
+		if(path){
+			for(var ni = 0; ni < this.files.length; ni++){
+				if(this.files[ni].path == path){
+					this.selectFile({target: this.files[ni].element});
+					return;
+				}
+			}
+		}
+		var file = new drdelambre.editor.File;
+		file.path = path;
+		file.name = path;
+		file.document = new drdelambre.editor.Document();
+		this.editor.document = file.document;
+		if(path){
+			var ret = drdelambre.bind(function(resp){
+				var mime = request.req.getResponseHeader('Content-Type');
+				for(var type in drdelambre.editor.mode){
+					if(mime == new drdelambre.editor.mode[type]().mime)
+						file.document.mode = new drdelambre.editor.mode[type]();
+				}
+				file.document.fromString(resp);
+			}, this);
+			var request = new drdelambre.ajax({
+				url: path,
+				success: ret
+			});
+		}
+
+		this.addFile(file);
 	},
-	set editor(_index){},
+	updateView : function(doc, view){
+		if(!doc || doc.__inst_id__ != this.files[this.curr].document.__inst_id__)
+			return;
+		this.files[this.curr].view = view.start;
+	},
 	updateCount : function(line){
 		var count = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		count[0].innerHTML = line.line + 1;
 		count[1].innerHTML = line.char;
 	},
-	
+
+	addFile : function(file){
+		if(this.curr >= 0)
+			this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/g,'');
+		this.files.push(file);
+		this.curr = this.files.length - 1;
+
+		var elem = document.createElement('div');
+		elem.className = 'entry selected';
+		elem.innerHTML = '<input type="hidden" value="' + this.curr + '">' + file.name + '<span>X</span>';
+		file.element = elem;
+
+		this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('slide')[0].appendChild(elem);
+		elem.addEventListener('mousedown', this.selectFile, false);
+		elem.getElementsByTagName('span')[0].addEventListener('mousedown', this.closeFile, false);
+	},
 	selectFile : function(evt){
-		if(evt.target.nodeName.toLowerCase() == 'span') return;
-		var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry');
-		for(var ni = 0; ni < closes.length; ni++)
-			closes[ni].className = closes[ni].className.replace(/\s*selected/g,'');
-		evt.target.className += ' selected';
+		if(evt.target.nodeName.toLowerCase() == 'span')
+			return;
+		if(evt.target.className.match(/open/)){
+			//open file browser
+			return;
+		}
+		if(evt.target.getElementsByTagName('input')[0].value == this.curr)
+			return;
+
+		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0];
+		if(/selected/.test(elem.className)){
+			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
+			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
+		}
+
+		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '');
+		this.curr = evt.target.getElementsByTagName('input')[0].value;
+		this.files[this.curr].element.className += ' selected';
+		this.editor.document = this.files[this.curr].document;
 	},
 	closeFile : function(evt){
-		var elem = evt.target.parentNode;
-		if(elem.className.match(/selected/)){
-			var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry');
-			if(closes.length == 2){	//only file and open
-				return;
-			}
-			for(var ni = 1; ni < closes.length; ni++){
-				if(closes[ni] == elem){
-					if(ni == 1)
-						closes[2].className += ' selected';
-					else
-						closes[ni - 1].className += ' selected';
-					break;
-				}
-			}
-		}
+		var id = evt.target.parentNode.getElementsByTagName('input')[0].value,
+			elem = this.files[id].element;
+
 		elem.className += ' removed';
 		setTimeout(function(){ elem.parentNode.removeChild(elem); },500);
+
+		if(id == 0 && this.files.length == 1){
+			//load a new file
+			console.log('not implemented yet');
+			return;
+		}
+		
+		this.files.splice(id,1);
+		if(id != 0)
+			this.curr--;
+
+		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '') + ' selected';
+		this.editor.document = this.files[this.curr].document;
+		
+		for(var ni = 0; ni < this.files.length; ni++)
+			this.files[ni].element.getElementsByTagName('input')[0].value = ni;
 	},
 
 	openLine : function(evt){
@@ -241,6 +306,17 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			this.element.className += ' edit';
 			help.style.display = '';
 			if(menu.length) menu[0].parentNode.removeChild(menu[0]);
+			var prev = this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0];
+			prev.innerHTML = this.editor.element.innerHTML;
+			var lines = prev.getElementsByClassName('gutter')[0].getElementsByClassName('line');
+			lines[1].parentNode.removeChild(lines[1]);
+			lines[0].parentNode.removeChild(lines[0]);
+			lines = prev.getElementsByClassName('content')[0].getElementsByClassName('line');
+			for(var ni = 0; ni < lines.length; ni++){
+				lines[ni].innerHTML = lines[ni].innerHTML.replace(new RegExp('\\s{' + drdelambre.editor.settings.tabLength + '}', 'g'), '<span class="tab">' + Array(drdelambre.editor.settings.tabLength + 1).join('&nbsp;') + '</span>');
+			}
+			lines[1].parentNode.removeChild(lines[1]);
+			lines[0].parentNode.removeChild(lines[0]);
 		}
 	},
 	settingsClick : function(evt){
@@ -410,5 +486,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 
 drdelambre.editor.File = new drdelambre.class({
 	name: '',
-	editor: null
+	path: '',
+	document: null,
+	view: 0
 });

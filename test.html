@@ -64,7 +64,6 @@ var drdelambre = drdelambre || {
 				cache[t].splice(ni, 1);
 	},
 	class : function(proto){
-		var id = ++drdelambre.inst_id;
 		var fun = function(){
 			if(!(this instanceof arguments.callee))
 				throw new Error('drdelambre.class: not called as a constructor (try adding "new")');
@@ -74,7 +73,7 @@ var drdelambre = drdelambre || {
 				else
 					this[member] = drdelambre.bind(proto[member],this);
 			}
-			this['__inst_id__'] = id;
+			this['__inst_id__'] = ++drdelambre.inst_id;
 			if(this.init) this.init.apply(this,arguments);
 		};
 
@@ -140,26 +139,26 @@ drdelambre.extend(drdelambre,{
 		}, options);
 	
 		if(window.XDomainRequest){
-			var req = new window.XDomainRequest();
+			this.req = new window.XDomainRequest();
 			if(options.success)
-				req.onload = function(){ options.success(req.responseText); };
+				this.req.onload = function(){ options.success(this.req.responseText); };
 			if(options.error)
-				req.onerror = function(){ options.error(req.responeText); };
+				this.req.onerror = function(){ options.error(this.req.responeText); };
 			
-			req.open(options.method, options.url);
-			req.send();
+			this.req.open(options.method, options.url);
+			this.req.send();
 		} else {
-			var req = new XMLHttpRequest();
-			req.onreadystatechange = function(){
-				if(req.readyState == 4){
-					if(req.status == 200 && options.success)
-						options.success(req.responseText);
-					else if(req.status != 200 && options.error)
-						options.error(req.responseText);
+			this.req = new XMLHttpRequest();
+			this.req.onreadystatechange = drdelambre.bind(function(){
+				if(this.req.readyState == 4){
+					if(this.req.status == 200 && options.success)
+						options.success(this.req.responseText);
+					else if(this.req.status != 200 && options.error)
+						options.error(this.req.responseText);
 				}
-			};
-			req.open(options.method, options.url, options.async);
-			req.send();
+			}, this);
+			this.req.open(options.method, options.url, options.async);
+			this.req.send();
 		}
 	}
 });
@@ -170,16 +169,7 @@ drdelambre.extend(drdelambre,{
 <body>
 	<div class="file-editor">
 		<div class="file-slider">
-			<div class="slide">
-				<div class="entry open">open</div><!--
-				--><div class="entry">fileOne.js<span>X</span></div><!--
-				--><div class="entry">fileTwo.js<span>X</span></div><!--
-				--><div class="entry selected">fileThree.js<span>X</span></div><!--
-				--><div class="entry">fileFour.js<span>X</span></div><!--
-				--><div class="entry">fileFive.js<span>X</span></div><!--
-				--><div class="entry">fileSix.js<span>X</span></div><!--
-				--><div class="entry">fileSeven.js<span>X</span></div>
-			</div>
+			<div class="slide"><div class="entry open">open</div></div>
 		</div>
 		<div class="editor">
 			<textarea></textarea>
@@ -198,51 +188,17 @@ drdelambre.extend(drdelambre,{
 		</div>
 		<div class="settings">
 			<h1>settings</h1>
-			<div class="left">
-				<h1>editor preview</h1>
-				<div class="preview editor">
-					<div class="gutter">
-						<div class="line">1</div>
-						<div class="line">2</div>
-						<div class="line">3</div>
-						<div class="line">4</div>
-						<div class="line">5</div>
-						<div class="line">6</div>
-						<div class="line">7</div>
-						<div class="line">8</div>
-						<div class="line">9</div>
-						<div class="line">10</div>
-						<div class="line">11</div>
-						<div class="line">12</div>
-						<div class="line">13</div>
-						<div class="line">14</div>
-						<div class="line">15</div>
-					</div>
-					<div class="window">
-						<div class="line-marker">
-							<div class="select"></div>
-							<div class="cursor"><div class="marker"></div><div class="tag"></div></div>
-						</div>
-						<div class="content">
-							<div class="line"><span class="keyword">var</span> drdelambre <span class="operator">=</span> drdelambre <span class="operator">|</span><span class="operator">|</span> {</div>
-							<div class="line"><span class="tab">    </span>cache: {},</div>
-							<div class="line"><span class="tab">    </span>debug: <span class="atom">true</span>,</div>
-							<div class="line"><span class="tab">    </span>debugTouch: <span class="atom">false</span>,</div>
-							<div class="line"><span class="tab">    </span>inst_id: <span class="operator">-</span><span class="number">1</span>,</div>
-							<div class="line"></div>
-							<div class="line"><span class="tab">    </span>publish : <span class="keyword">function</span>(topic, args){</div>
-							<div class="line"><span class="tab">    </span><span class="tab">    </span><span class="keyword">if</span>(Object.prototype.<span class="function toString() { [native code] }">toString</span>.apply(args) <span class="operator">!</span><span class="operator">=</span><span class="operator">=</span> <span class="string">'[object Array]'</span>)</div>
-							<div class="line"><span class="tab">    </span><span class="tab">    </span><span class="tab">    </span>args <span class="operator">=</span> [args];</div>
-							<div class="line"><span class="comment">//here's a comment</span></div>
-						</div>
-					</div>
+			<div class="bottom-wrap">
+				<div class="left">
+					<h1>editor preview</h1>
+					<div class="preview editor"></div>
 				</div>
-			</div>
-			<div class="right">
-				<div class="help">
-					<div><----------------------</div>
-					click on the editor to configure its look
-					<div><----------------------</div>
+				<div class="right">
+					<div class="help">
+						<div><----------------------</div>
+						click on the editor to configure its look
+						<div><----------------------</div>
+					</div>
 				</div>
 			</div>
 		</div>
@@ -258,6 +214,7 @@ drdelambre.extend(drdelambre,{
 </body>
 	<script type="text/javascript">
 	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
-	edit.editor.doc.fromURL('js/editor.js');
+	edit.open('js/editor.js');
+	edit.open('css/editor.css');
 	</script>
 </html>

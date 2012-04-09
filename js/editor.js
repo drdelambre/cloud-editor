@@ -92,6 +92,16 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.element.addEventListener('mousedown', this.start, false);
 		}
 	},
+	get document(){
+		return this.doc;
+	},
+	set document(doc){
+		this.doc = doc;
+		if(!this.pager)
+			return;
+		this.pager.doc = doc;
+		this.pager.populate(doc);
+	},
 	create : function(){
 		var div = document.createElement('div');
 		div.className = 'editor';
@@ -583,17 +593,18 @@ drdelambre.editor.Pager = new drdelambre.class({
 		drdelambre.editor.subscribe('/editor/caret', this.scrollTo);
 	},
 	populate : function(doc){
+		if(doc.__inst_id__ != this.doc.__inst_id__)
+			return;
+		if(!doc.loaded) return;
 		this.view.end -= this.view.start;
 		this.view.start = 0;
 		var lines = this.element.getElementsByClassName('line'),
 			guts = this.gutter.getElementsByClassName('line'),
-			state = null;
 			ni = 2;
 
+		this.doc.format(0,this.view.end + 2);
 		for(; ni <= this.view.end+4; ni++){
 			guts[ni].innerHTML = ni - 1;
-			this.doc.lines[ni-2]._state = state;
-			state = this.doc.lines[ni-2].format(this.doc.mode);
 			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
 		}
 
@@ -609,24 +620,17 @@ drdelambre.editor.Pager = new drdelambre.class({
 
 		if(index == this.view.start) index -= 2;
 		var start = index - this.view.start + 2,
-			state = index < 1?null:this.doc.lines[index - 1]._state;
-		while(index < this.view.end + 2){
-			if(index < 0){
-				index++;
-				if(start++ > 0)
-					this.element.getElementsByClassName('line')[start - 1].innerHTML = '';
-				continue;
-			}
-			this.doc.lines[index]._state = state;
-			state = this.doc.lines[index].format(this.doc.mode);
+			fStr = '';
+		this.doc.format(index, this.view.end - index + 4);
+		while(index <= this.view.end + 2){
+			if(index < 0)
+				fStr = '';
+			else
+				fStr = this.doc.getFormattedLine(index);
+
 			if(start++ > 0)
-				this.element.getElementsByClassName('line')[start-1].innerHTML = this.doc.getFormattedLine(index);
+				this.element.getElementsByClassName('line')[start-1].innerHTML = fStr;
 			index++;
-		}
-		
-		while(state != this.doc.lines[index++]._state){
-			this.doc.lines[index]._state = state;
-			state = this.doc.lines[index++].format(this.doc.mode);
 		}
 
 		this.resetRight();
@@ -639,6 +643,8 @@ drdelambre.editor.Pager = new drdelambre.class({
 				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength).join(' '));
 		this.view.lineWidth = this.muncher.offsetWidth;
 		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
+		if(this.view.right > 0)
+			this.view.right = 0;
 	},
 
 	pixelToText : function(pageX, pageY){
@@ -843,16 +849,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 			elem = this.element,
 			gut = this.gutter,
 			len = this.doc.lines.length - 1;
-			state = end <= len?this.doc.lines[end]._state:null;
-
+		this.doc.format(end, lines);
+		
 		for(var ni = 0; ni < lines; ni++){
 			if(end + ni + 1 > len)
 				elem.firstChild.innerHTML = '';
-			else {
-				this.doc.lines[end + ni + 1]._state = state;
-				state = this.doc.lines[end + ni + 1].format(this.doc.mode);
+			else 
 				elem.firstChild.innerHTML = this.doc.getFormattedLine(end + ni + 1);
-			}
 
 			gut.firstChild.innerHTML = end + ni + 2;
 
@@ -898,11 +901,11 @@ drdelambre.editor.Document = new drdelambre.class({
 	longest: '',
 
 	init : function(mode){
+		this.lines = [];
 		if(mode)
 			this._mode = mode;
 		else
-			this._mode = new drdelambre.editor.mode.Javascript();
-//			this._mode = new drdelambre.editor.mode.PlainText();
+			this._mode = new drdelambre.editor.mode.PlainText();
 	},
 	fromString : function(data){
 		if(typeof data !== "string") return;
@@ -1047,6 +1050,22 @@ drdelambre.editor.Document = new drdelambre.class({
 
 		if(index >= this.lines.length) return '';
 		return this.lines[index].formatted;
+	},
+	format : function(index, length){
+		if(!length) length = 1;
+		var state = index > 0? this.lines[index-1]._state : null;
+		for(var ni = 0; ni < length; ni++){
+			if(index + ni < 0) continue;
+			if(index + ni == this.lines.length - 1) break;
+			this.lines[index+ni]._state = state;
+			state = this.lines[index+ni].format(this.mode);
+		}
+		index += length;
+		if(index >= this.lines.length - 1) return;
+		while(this.lines[++index]._state != state){
+			this.lines[index]._state = state;
+			state = this.lines[index].format(this.mode);
+		}
 	},
 
 	clearSelection : function(){
@@ -1226,7 +1245,8 @@ drdelambre.editor.Line = new drdelambre.class({
  */
 drdelambre.editor.mode = {};
 drdelambre.editor.mode.Javascript = new drdelambre.class({
-	operator: /[+\-*&%=<>!?|~]/,
+	mime: 'application/javascript',
+	operator: /[\[\]+\-*&%=<>!?|~]/,
 	keywords: {
 		"in": 'operator',
 		"typeof": 'operator',
@@ -1338,7 +1358,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 			}
 		}
 
-		if(/[\[\]{}\(\),;\:\.]/.test(line[0]))
+		if(/[{}\(\),;\:\.]/.test(line[0]))
 			return {
 				style: null,
 				string: line[0]
@@ -1385,7 +1405,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 		}
 
 		// can't use this.operators because of android bug
-		if(/[+\-*&%=<>!?|~]/.test(line[0]))
+		if(/[\[\]+\-*&%=<>!?|~]/.test(line[0]))
 			return {
 				style: 'operator',
 				string: line[0]
@@ -1408,7 +1428,95 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 		}
 	}
 });
+drdelambre.editor.mode.CSS = new drdelambre.class({
+	mime: 'text/css',
+	token : function(line, start, state){
+		line = line.substr(start);
+		if(state){
+			if(state.parent == 'comment'){
+				var str = line.match(/.*\*\//);
+				if(str)
+					return {
+						style: 'comment',
+						string: str[0],
+						completed: true
+					}
+				return {
+					style: 'comment',
+					string: line,
+					completed: false
+				}
+			}
+		}
+		if(/\s/.test(line[0]))
+			return {
+				style: null,
+				string: line.match(/^\s+/)[0]
+			}
+		if(/^\/\*/.test(line)){
+			var com = line.match(/^\/\*.*\*\//);
+			if(com)
+				return {
+					style: 'comment',
+					string: com[0],
+					completed: true
+				}
+			return {
+				style: 'comment',
+				string: line,
+				completed: false
+			}
+		}
+		if(/\d/.test(line[0]))
+			return {
+				style: 'number',
+				string: line.match(/^\d+\.?\d*(%|px|em|ex|s)?/)[0]
+			}
+		if(line.match(/^.+(?={)/))
+			return {
+				style: 'keyword',
+				string: line.match(/^.+(?={)/)[0],
+				completed: true
+			}
+		if(/^[\{\(\}\):;]/.test(line[0]))
+			return {
+				style: 'none',
+				string: line[0]
+			}
+		if(line.match(/^.+(?=:)/))
+			return {
+				style: 'operator',
+				string: line.match(/^.+(?=:)/)[0]
+			}
+		if(/#/.test(line[0]))
+			return {
+				style: 'atom',
+				string: line.match(/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})/)[0]
+			}
+		if(line.match(/^rgba?\(.+\)/))
+			return {
+				style: 'atom',
+				string: line.match(/^rgba?\(.+\)/)[0]
+			}
+		if(line.match(/^url\(.+\)/))
+			return {
+				style: 'atom',
+				string: line.match(/^url\(.+\)/)[0]
+			}
+		if(line.match(/^.+(?=;)/))
+			return {
+				style: 'string',
+				string: line.match(/^.+(?=;)/)[0],
+				completed: true
+			}
+		return {
+			style: null,
+			string: line[0]
+		}
+	}
+});
 drdelambre.editor.mode.PlainText = new drdelambre.class({
+	mime: 'text/plain',
 	token : function(line, start){
 		return {
 			style: null,

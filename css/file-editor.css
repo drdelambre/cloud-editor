@@ -1,6 +1,6 @@
 @font-face {
-  font-family: "mono";
-  src: url("../fonts/Inconsolata.otf");
+	font-family: "mono";
+	src: url("../fonts/Inconsolata.otf");
 }
 
 /* =FileEditor
@@ -123,6 +123,16 @@
 	        transform: rotateX(-180deg);
 }
 
+.file-editor .bottom-wrap {
+	position: absolute;
+	width: 100%;
+	height: 100%;
+	box-sizing: border-box;
+	padding-top: 3em;
+	top: 0;
+	overflow: hidden;
+}
+
 .file-editor.edit .settings {
 	-webkit-transform: rotateX(0deg);
 	   -moz-transform: rotateX(0deg);
@@ -161,7 +171,7 @@
 }
 
 .file-editor .settings .preview {
-    height: auto;
+    height: 100%;
     width: auto;
     position: relative;
     font-size: 0.8em;
@@ -174,12 +184,20 @@
 .file-editor .settings .preview .line-marker .select { width: 5em }
 .file-editor .settings .preview .line-marker .cursor { left: 4.3em }
 
+.file-editor .settings .right,
 .file-editor .settings .left {
 	width: 50%;
-	float: left;
-	padding-top: 1em;
-	height: 15em;
+	padding: 3em 0 1em;
+	height: 100%;
 	overflow: hidden;
+	position: relative;
+	box-sizing: border-box;
+}
+
+.file-editor .settings .right {
+	padding: 0;
+	top: -100%;
+	left: 50%
 }
 
 .file-editor .settings .left h1 {
@@ -188,6 +206,9 @@
 	padding: 0;
 	background: transparent;
 	border-bottom: 1px solid #87A96B;
+	position: absolute;
+	top: 0.8em;
+	width: 100%;
 }
 
 .file-editor .settings .right { overflow: hidden }
@@ -195,8 +216,12 @@
 	color: #ccc;
 	font-size: 1.5em;
 	text-align: center;
-	margin: 4em auto 0;
 	width: 12.5em;
+	position: absolute;
+	top: 50%;
+	margin-left: -6.25em;
+	left: 50%;
+	margin-top: -2em;
 }
 
 .file-editor .settings .right .help div {
@@ -205,12 +230,16 @@
 
 .file-editor .settings .right .menu {
 	text-align: center;
-	margin: 5em auto 0;
 	overflow: hidden;
 	width: 24em;
 	background: #33332c;
 	padding-bottom: 0.5em;
 	border-radius: 0.5em;
+	position: absolute;
+	left: 50%;
+	margin-left: -12em;
+	top: 50%;
+	margin-top: -3em;
 }
 
 .file-editor .settings .right .menu h1 {
