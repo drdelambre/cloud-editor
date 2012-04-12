@@ -405,10 +405,10 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			style = document.styleSheets[document.styleSheets.length - 1],
 			index = style.cssRules.length,
 			rule = ".editor " + (elem!='window'&&elem!='gutter'?'span':'') + "." + elem + " {";
-		if(inps[0].value.length && !inps[0].className.match(/invalid/))
-			rule += "color:#" + inps[0].value.replace(/#/g,'') + ';'
 		if(inps[1].value.length && !inps[1].className.match(/invalid/))
-			rule += "background:#" + inps[1].value.replace(/#/g,'') + ';'
+			rule += "color:#" + inps[1].value.replace(/#/g,'') + ';'
+		if(inps[2].value.length && !inps[2].className.match(/invalid/))
+			rule += "background:#" + inps[2].value.replace(/#/g,'') + ';'
 		rule += "}";
 		style.insertRule(rule, index);
 	},
