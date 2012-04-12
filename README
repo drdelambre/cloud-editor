@@ -1,5 +1,6 @@
 What can i say... it's a text editor!
 This one uses a bunch of hacks that are different from ACE or CodeMirror to allow it's use on iOS and android devices, as well as the desktop! It's a stand-alone library so you can embed it anywhere that allows javascript. As far as features, it supports syntax highlighting and a cool little diddle where you can drag and drop fonts into it to change the look.
+Make sure you have node installed if you want to run it, and run npm update in the root directory to get all the dependencies in check.
 
 Next on the chopping block:
 	mobile cut and paste
