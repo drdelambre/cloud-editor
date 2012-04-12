@@ -1,0 +1,21 @@
+{
+  "name": "editor",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "2.5.2",
+    "stylus": ">= 0.0.1",
+    "jade": ">= 0.0.1"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": "*"
+  },
+  "author": "Alex Boatwright <drdelambre@gmail.com>",
+  "description": "a cloud based editor",
+  "homepage": "https://github.com/drdelambre/cloud-editor",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/drdelambre/cloud-editor.git"
+  }
+}

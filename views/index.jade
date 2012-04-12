@@ -1,0 +1,77 @@
+head
+	meta(name='viewport', content='width=device-width,initial-scale=1')
+	style(type='text/css')
+		body {
+			margin: 0;
+			padding: 0;
+			background: #e0e0c8;
+		}
+
+		/* =MediaQueries!
+		*************************************************/
+		@media screen and (max-width: 709px){
+			.file-editor {
+				padding: 0;
+				font-size: 0.8em;
+			}
+			
+			.editor,
+			.editor:before,
+			.editor .gutter {
+				border-radius: 0;
+			}
+		}
+	link(href="images/favicon.png", rel="icon", type="image/png")
+	link(rel="stylesheet", type="text/css", href="css/file-editor.css")
+	link(rel="stylesheet", type="text/css", href="css/editor.css")
+	script(src="js/default.js", type="text/javascript")
+	script(src="js/editor.js", type="text/javascript")
+	script(src="js/file-editor.js", type="text/javascript")
+body
+	.file-editor
+		.file-slider
+			.slide
+				.entry.open open
+		.editor
+			textarea
+			.gutter
+			.window
+				.line-marker(style="display:none")
+					.select.top
+					.select.middle
+					.select.bottom
+					.cursor
+						.marker
+						.tag
+				.content
+				pre
+			.key-toggle
+				img(src="images/keyboard.png")
+				| keyboard
+		.settings
+			h1 settings
+			.bottom-wrap
+				.left
+					h1 editor preview
+					.preview.editor
+				.right
+					.help
+						div <----------------------
+						| click on the editor to configure its look
+						div <----------------------
+		.footer
+			.line-count
+				| line:
+				span 1
+				| char:
+				span 0
+			.set-button settings
+			select
+				option choose a language
+				option --------------
+script
+	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
+	window.addEventListener('load',function(){
+		edit.open('js/editor.js');
+		edit.open('css/editor.css');
+	}, false);
