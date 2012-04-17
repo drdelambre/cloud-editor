@@ -106,7 +106,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		this.editor.document = file.document;
 		if(path){
 			var ret = drdelambre.bind(function(resp){
-				var mime = request.req.getResponseHeader('Content-Type');
+				var mime = request.req.getResponseHeader('Content-Type').replace(/;.*/,'');
 				for(var type in drdelambre.editor.mode){
 					if(mime == new drdelambre.editor.mode[type]().mime)
 						file.document.mode = new drdelambre.editor.mode[type]();
@@ -152,6 +152,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			return;
 		if(evt.target.className.match(/open/)){
 			//open file browser
+			if(this.element.className.match(/edit/))
+				this.slideSettings();
+			this.element.className += ' open';
 			return;
 		}
 		if(evt.target.getElementsByTagName('input')[0].value == this.curr)
@@ -290,19 +293,18 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	},
 	
 	toggleSettings : function(evt){
-		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0],
-			help = this.element.getElementsByClassName('settings')[0]
+		var help = this.element.getElementsByClassName('settings')[0]
 				.getElementsByClassName('right')[0]
 				.getElementsByClassName('help')[0],
 			menu = this.element.getElementsByClassName('settings')[0]
 				.getElementsByClassName('right')[0]
 				.getElementsByClassName('menu');
 
-		if(/selected/.test(elem.className)){
-			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
+		if(/\s+edit/.test(this.element.className)){
 			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
 		} else {
-			elem.className += ' selected';
+			if(this.element.className.match(/open/))
+				this.slideSettings();
 			this.element.className += ' edit';
 			help.style.display = '';
 			if(menu.length) menu[0].parentNode.removeChild(menu[0]);
@@ -482,6 +484,16 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		},this);
 		reader.readAsDataURL(file);
 	},
+	
+	slideSettings : function(){
+		if(!this.element.className.match(/\s+edit/)){	// slide browser out and settings in
+			console.log('hurrr');
+			this.element.className = this.element.className.replace(/\s+open/g,'');
+		} else {
+			console.log('herrr');
+			this.element.className = this.element.className.replace(/\s+edit/g,'');
+		}
+	}
 });
 
 drdelambre.editor.File = new drdelambre.class({

@@ -95,6 +95,7 @@ transform(val)
 		display block
 		width 100%
 		position relative
+		border-radius 0.8em
 		box-sizing border-box
 		box-shadow 0 3px 8px rgba(0,0,0,0.4)
 		z-index 4
@@ -108,6 +109,132 @@ transform(val)
 		-o-transition -o-transform 0.8s
 		transition transform 0.8s
 	
+	.ftp-browser
+		height 100%
+		display block
+		width 100%
+		position relative
+		box-sizing border-box
+		z-index 8
+		background rgba(39,40,34,0.9)
+		border-radius 0.8em
+		top -200%
+		left 0
+		visibility hidden
+		opacity 0
+
+		backface-visibility hidden
+		transform-style preserve-3d
+	
+		-webkit-transition -webkit-transform 0.8s, opacity 0.5s, visibility 0s linear 0.5s
+		-moz-transition -moz-transform 0.8s, opacity 0.5s, visibility 0s linear 0.5s
+		-ms-transition -ms-transform 0.8s, opacity 0.5s, visibility 0s linear 0.5s
+		-o-transition -o-transform 0.8s, opacity 0.5s, visibility 0s linear 0.5s
+		transition transform 0.8s, opacity 0.5s, visibility 0s linear 0.5s
+
+		.connected
+			position absolute
+			width 100%
+			bottom 0
+			left 0
+			box-sizing border-box
+			padding 0.2em 1em
+			font-size 0.8em
+			border-radius 0 0 1em 1em
+			background #87A96B
+			color #5c5f50
+			text-align right
+
+			span
+				color #333
+			.btn
+				float right
+				margin-left 1em
+				color #e8e8ef
+				cursor pointer
+		.info
+			height 100%
+			position relative
+			box-sizing border-box
+			padding-bottom 1.2em
+			width 25%
+			float right
+			
+			.blank
+				position absolute
+				top 50%
+				width 100%
+				margin-top -1em
+				text-align center
+				
+				h1
+					margin 0
+					color #e8e8ef
+					font-size 1.6em
+					line-height 1em
+				h2
+					margin 0
+					color #666
+					font-size 1em
+					line-height 1em
+			.action
+				width 100%
+				position absolute
+				bottom 1.2em
+				border-top 1px solid #333
+				
+				.button
+					float left
+					width 40%
+					margin 0 5%
+					text-align center
+					color #fff
+					padding 0.5em 0
+					cursor pointer
+					border-right 1px solid #333
+				.button.last
+					border-right none
+				.button.disabled
+					color #333
+
+		.pane-slide
+			height 100%
+			box-sizing border-box
+			padding-bottom 1.2em
+			overflow-x auto
+			overflow-y hidden
+			white-space nowrap
+			margin 0 0.5em
+
+			.pane
+				height 100%
+				box-sizing border-box
+				padding 0.5em 0
+				width 30%
+				overflow-x hidden
+				overflow-y auto
+				border-right 2px solid #333
+				display inline-block
+				vertical-align top
+				
+				.entry
+					padding 0.2em 0 0 1.9em
+					color #e8e8ef
+					cursor pointer
+					background-position 0.5em 50%
+					background-size 1.2em
+					background-repeat no-repeat
+				.entry.selected
+					color #fff
+					background-color #00bfff
+				.entry.folder
+					background-image url(/images/folder.png)
+				.entry.folder.selected
+					background-image url(/images/folder_open.png)
+				.entry.file
+					background-image url(/images/file.png)
+				.entry.file.unsupported
+					opacity 0.2
 
 	.settings
 		border-radius 0.8em
@@ -297,7 +424,19 @@ transform(val)
 .file-editor.edit
 	.editor
 		transform rotateX(180deg)
+	.ftp-browser
+		transform rotateX(180deg)
 	.settings
 		transform rotateX(0deg)
 		.preview
 			transform none
+
+.file-editor.open
+	.ftp-browser
+		visibility visible
+		opacity 1
+		-webkit-transition-delay 0
+		-moz-transition-delay 0
+		-ms-transition-delay 0
+		-o-transition-delay 0
+		transition-delay 0
