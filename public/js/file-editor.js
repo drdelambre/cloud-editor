@@ -50,6 +50,7 @@ drdelambre.editor = drdelambre.editor || {
 drdelambre.editor.FileEditor = new drdelambre.class({
 	element: null,
 	editor: null,
+	browser: null,
 	files: [],
 	curr: -1,
 
@@ -60,6 +61,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 
 		this.editor.element.addEventListener('dragover', this.hover, false);
 		this.editor.element.addEventListener('drop', this.drop, false);
+		
+		this.browser = new drdelambre.editor.FtpBrowser(this.element.getElementsByClassName('ftp-browser')[0]);
 		
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		cursor[0].addEventListener('mouseup', this.openLine, false);
@@ -154,7 +157,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			//open file browser
 			if(this.element.className.match(/edit/))
 				this.slideSettings();
-			this.element.className += ' open';
+			this.browser.open();
 			return;
 		}
 		if(evt.target.getElementsByTagName('input')[0].value == this.curr)
@@ -487,10 +490,8 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	
 	slideSettings : function(){
 		if(!this.element.className.match(/\s+edit/)){	// slide browser out and settings in
-			console.log('hurrr');
 			this.element.className = this.element.className.replace(/\s+open/g,'');
 		} else {
-			console.log('herrr');
 			this.element.className = this.element.className.replace(/\s+edit/g,'');
 		}
 	}
@@ -501,4 +502,47 @@ drdelambre.editor.File = new drdelambre.class({
 	path: '',
 	document: null,
 	view: 0
+});
+
+drdelambre.editor.FtpBrowser = new drdelambre.class({
+	element: null,
+	
+	init : function(elem){
+		this.element = elem;
+		
+		var connect = this.element.getElementsByClassName('connected')[0].getElementsByClassName('btn')[0],
+			cancel = this.element.getElementsByClassName('connector')[0].getElementsByClassName('btn-c')[0],
+			setter = this.element.getElementsByClassName('connector')[0].getElementsByClassName('btn')[0],
+			actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
+		connect.addEventListener('mousedown', this.openCon, false);
+		cancel.addEventListener('mousedown', this.closeCon, false);
+		setter.addEventListener('mousedown', this.setCon, false);
+		actions[1].addEventListener('mousedown', this.close, false);
+	},
+
+	open : function(evt){
+		this.element.className += ' open';
+	},
+	close : function(evt){
+		this.element.className = this.element.className.replace(/\s+open/g,'');
+	},
+	openCon : function(evt){
+		this.element.className += ' connect';
+	},
+	closeCon : function(evt){
+		this.element.className = this.element.className.replace(/\s+connect(ing)?/g,'');
+	},
+	setCon : function(evt){
+		this.element.className += ' connecting';
+		setTimeout(this.closeCon, 2000);
+	}
+});
+
+drdelambre.editor.FileBrowser = new drdelambre.class({
+	element: null,
+
+	init : function(elem){
+		this.element = elem;
+		
+	}
 });
