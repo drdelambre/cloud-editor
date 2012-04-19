@@ -49,10 +49,9 @@ drdelambre.editor = drdelambre.editor || {
  */
 drdelambre.editor.FileEditor = new drdelambre.class({
 	element: null,
+	slider: null,
 	editor: null,
 	browser: null,
-	files: [],
-	curr: -1,
 
 	init : function(elem){
 		this.element = elem;
@@ -61,8 +60,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 
 		this.editor.element.addEventListener('dragover', this.hover, false);
 		this.editor.element.addEventListener('drop', this.drop, false);
-		
+
 		this.browser = new drdelambre.editor.FtpBrowser(this.element.getElementsByClassName('ftp-browser')[0]);
+		this.slider = new drdelambre.editor.FileSlider(this.element.getElementsByClassName('file-slider')[0]);
 		
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		cursor[0].addEventListener('mouseup', this.openLine, false);
@@ -82,26 +82,13 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		select.selectedIndex = ni;
 		select.addEventListener('change', this.languageChange, false);
 		
-		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.settingsClick, false);
-		var closes = this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('entry'),
-			closeTag = null;
-		for(var ni = 0; ni < closes.length; ni++){
-			closes[ni].addEventListener('mousedown', this.selectFile, false);
-			closeTag = closes[ni].getElementsByTagName('span');
-			if(closeTag.length) closeTag[0].addEventListener('mousedown', this.closeFile,false);
-		}
+		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.selectRule, false);
 
 		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
+		drdelambre.editor.subscribe('/editor/file/select', this.loadFile);
+		drdelambre.editor.subscribe('/editor/file/open', this.showBrowser);
 	},
 	open : function(path){
-		if(path){
-			for(var ni = 0; ni < this.files.length; ni++){
-				if(this.files[ni].path == path){
-					this.selectFile({target: this.files[ni].element});
-					return;
-				}
-			}
-		}
 		var file = new drdelambre.editor.File;
 		file.path = path;
 		file.name = path;
@@ -122,80 +109,19 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			});
 		}
 
-		this.addFile(file);
+		this.slider.add(file);
 	},
-	updateView : function(doc, view){
-		if(!doc || doc.__inst_id__ != this.files[this.curr].document.__inst_id__)
-			return;
-		this.files[this.curr].view = view.start;
+	loadFile : function(file){
+		this.element.className = this.element.className.replace(/\s+edit/g,'');
+		this.editor.document = file.document;
+	},
+	showBrowser : function(){
+		this.element.className = this.element.className.replace(/\s+edit/g,'');
 	},
 	updateCount : function(line){
 		var count = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		count[0].innerHTML = line.line + 1;
 		count[1].innerHTML = line.char;
-	},
-
-	addFile : function(file){
-		if(this.curr >= 0)
-			this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/g,'');
-		this.files.push(file);
-		this.curr = this.files.length - 1;
-
-		var elem = document.createElement('div');
-		elem.className = 'entry selected';
-		elem.innerHTML = '<input type="hidden" value="' + this.curr + '">' + file.name + '<span>X</span>';
-		file.element = elem;
-
-		this.element.getElementsByClassName('file-slider')[0].getElementsByClassName('slide')[0].appendChild(elem);
-		elem.addEventListener('mousedown', this.selectFile, false);
-		elem.getElementsByTagName('span')[0].addEventListener('mousedown', this.closeFile, false);
-	},
-	selectFile : function(evt){
-		if(evt.target.nodeName.toLowerCase() == 'span')
-			return;
-		if(evt.target.className.match(/open/)){
-			//open file browser
-			if(this.element.className.match(/edit/))
-				this.slideSettings();
-			this.browser.open();
-			return;
-		}
-		if(evt.target.getElementsByTagName('input')[0].value == this.curr)
-			return;
-
-		var elem = this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0];
-		if(/selected/.test(elem.className)){
-			elem.className = elem.className.split(/\s/).join(' ').replace(/\sselected/i,'');
-			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
-		}
-
-		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '');
-		this.curr = evt.target.getElementsByTagName('input')[0].value;
-		this.files[this.curr].element.className += ' selected';
-		this.editor.document = this.files[this.curr].document;
-	},
-	closeFile : function(evt){
-		var id = evt.target.parentNode.getElementsByTagName('input')[0].value,
-			elem = this.files[id].element;
-
-		elem.className += ' removed';
-		setTimeout(function(){ elem.parentNode.removeChild(elem); },500);
-
-		if(id == 0 && this.files.length == 1){
-			//load a new file
-			console.log('not implemented yet');
-			return;
-		}
-		
-		this.files.splice(id,1);
-		if(id != 0)
-			this.curr--;
-
-		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '') + ' selected';
-		this.editor.document = this.files[this.curr].document;
-		
-		for(var ni = 0; ni < this.files.length; ni++)
-			this.files[ni].element.getElementsByTagName('input')[0].value = ni;
 	},
 
 	openLine : function(evt){
@@ -304,10 +230,9 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 				.getElementsByClassName('menu');
 
 		if(/\s+edit/.test(this.element.className)){
+			this.browser.close();
 			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
 		} else {
-			if(this.element.className.match(/open/))
-				this.slideSettings();
 			this.element.className += ' edit';
 			help.style.display = '';
 			if(menu.length) menu[0].parentNode.removeChild(menu[0]);
@@ -324,7 +249,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			lines[0].parentNode.removeChild(lines[0]);
 		}
 	},
-	settingsClick : function(evt){
+	selectRule : function(evt){
 		var help = this.element.getElementsByClassName('settings')[0]
 				.getElementsByClassName('right')[0]
 				.getElementsByClassName('help')[0];
@@ -487,14 +412,6 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		},this);
 		reader.readAsDataURL(file);
 	},
-	
-	slideSettings : function(){
-		if(!this.element.className.match(/\s+edit/)){	// slide browser out and settings in
-			this.element.className = this.element.className.replace(/\s+open/g,'');
-		} else {
-			this.element.className = this.element.className.replace(/\s+edit/g,'');
-		}
-	}
 });
 
 drdelambre.editor.File = new drdelambre.class({
@@ -504,20 +421,118 @@ drdelambre.editor.File = new drdelambre.class({
 	view: 0
 });
 
+drdelambre.editor.FileSlider = new drdelambre.class({
+	element: null,
+	files: [], curr: -1,
+
+	mover: null, evts: null, timer: null,
+	
+
+	init : function(elem){
+		this.files = [];
+		this.element = elem;
+		this.element.getElementsByClassName('open')[0].addEventListener('mousedown', this.start, false);
+	},
+	add : function(file){
+		if(this.curr >= 0)
+			this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/g,'');
+		this.files.push(file);
+		this.curr = this.files.length - 1;
+
+		var elem = document.createElement('div');
+		elem.className = 'entry selected';
+		elem.innerHTML = '<input type="hidden" value="' + this.curr + '">' + file.name + '<span>X</span>';
+		file.element = elem;
+
+		this.element.getElementsByClassName('slide')[0].appendChild(elem);
+		elem.addEventListener('mousedown', this.start, false);
+		elem.getElementsByTagName('span')[0].addEventListener('mousedown', this.remove, false);
+	},
+	select : function(evt){
+		if(evt.target.nodeName.toLowerCase() == 'span')
+			return;
+		if(evt.target.className.match(/\s+selected/))
+			return
+		if(evt.target.className.match(/open/)){
+			drdelambre.editor.publish('/editor/file/open');
+			return;
+		}
+
+		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '');
+		this.curr = evt.target.getElementsByTagName('input')[0].value;
+		this.files[this.curr].element.className += ' selected';
+		drdelambre.editor.publish('/editor/file/select', this.files[this.curr]);
+	},
+	remove : function(evt){
+		var id = evt.target.parentNode.getElementsByTagName('input')[0].value,
+			elem = this.files[id].element;
+
+		elem.className += ' removed';
+		setTimeout(function(){ elem.parentNode.removeChild(elem); },500);
+
+		if(id == 0 && this.files.length == 1){
+			drdelambre.editor.publish('/editor/file/open');
+			return;
+		}
+		
+		this.files.splice(id,1);
+		if(id != 0)
+			this.curr--;
+
+		if(elem.className.match(/\s+selected/)){
+			this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '') + ' selected';
+			drdelambre.editor.publish('/editor/file/select', this.files[this.curr]);
+		}
+		
+		for(var ni = 0; ni < this.files.length; ni++)
+			this.files[ni].element.getElementsByTagName('input')[0].value = ni;
+	},
+	
+	start : function(evt){
+		if((evt.target.nodeName||'').toLowerCase() == 'span')
+			return;
+		this.mover = evt;
+		this.evts = [];
+		if(!evt.target.className.match(/open/))
+			window.addEventListener('mousemove', this.move, false);
+		window.addEventListener('mouseup', this.kill, false);
+	},
+	move : function(evt){
+		this.evts.push(evt);
+		if(this.timer) return
+		var throttle = drdelambre.bind(function(){
+			this.evts = [];
+		}, this);
+		this.timer = setInterval(throttle, 100);
+		throttle();
+	},
+	kill : function(evt){
+		window.removeEventListener('mousemove', this.move, false);
+		window.removeEventListener('mouseup', this.kill, false);
+
+		if(!this.timer){	// just a click
+			this.select(this.mover);
+			return;
+		}
+		
+		clearInterval(this.timer);
+		this.timer = null;
+	}
+});
+
 drdelambre.editor.FtpBrowser = new drdelambre.class({
 	element: null,
 	
 	init : function(elem){
 		this.element = elem;
 		
-		var connect = this.element.getElementsByClassName('connected')[0].getElementsByClassName('btn')[0],
-			cancel = this.element.getElementsByClassName('connector')[0].getElementsByClassName('btn-c')[0],
-			setter = this.element.getElementsByClassName('connector')[0].getElementsByClassName('btn')[0],
-			actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
-		connect.addEventListener('mousedown', this.openCon, false);
-		cancel.addEventListener('mousedown', this.closeCon, false);
-		setter.addEventListener('mousedown', this.setCon, false);
-		actions[1].addEventListener('mousedown', this.close, false);
+		this.element.addEventListener('drop', this.drop, false);
+		var news = this.element.getElementsByClassName('entry');
+		for(var ni = 0; ni < news.length; ni++)
+			news[ni].addEventListener('mousedown', this.load, false);
+		var actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
+		actions[3].addEventListener('mousedown', this.close, false);
+		drdelambre.editor.subscribe('/editor/file/open', this.open);
 	},
 
 	open : function(evt){
@@ -526,23 +541,66 @@ drdelambre.editor.FtpBrowser = new drdelambre.class({
 	close : function(evt){
 		this.element.className = this.element.className.replace(/\s+open/g,'');
 	},
-	openCon : function(evt){
-		this.element.className += ' connect';
-	},
-	closeCon : function(evt){
-		this.element.className = this.element.className.replace(/\s+connect(ing)?/g,'');
-	},
-	setCon : function(evt){
-		this.element.className += ' connecting';
-		setTimeout(this.closeCon, 2000);
-	}
-});
-
-drdelambre.editor.FileBrowser = new drdelambre.class({
-	element: null,
-
-	init : function(elem){
-		this.element = elem;
+	load : function(evt){
+		var elem = evt.target;
+		while(elem != document.body){
+			if((elem.className||'').match(/entry/))
+				break;
+			if(!elem.parentNode)
+				elem = document.body;
+			else
+				elem = elem.parentNode;
+		}
+		if(elem == document.body) return;
 		
+		var news = elem.parentNode.getElementsByClassName('entry');
+		for(var ni = 0; ni < news.length; ni++){
+			if(!news[ni].className.match(/\s+selected/))
+				continue;
+			news[ni].className = news[ni].className.replace(/\s+selected/g,'');
+			break;
+		}
+		elem.className += ' selected';
+
+		var actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
+		actions[3].removeEventListener('mousedown', this.close, false);
+		
+		var displays = this.element.getElementsByClassName('display');
+		for(var ni = 0; ni < displays.length; ni++)
+			displays[ni].style.display = 'none';
+		if(/\s+file/.test(elem.className)){			//file selected
+			displays[2].style.display = 'block';
+			actions[2].innerHTML = 'open';
+			actions[0].className = actions[1].className = actions[2].className = actions[3].className = 'button';
+			actions[3].addEventListener('mousedown', this.close, false);
+			if(/\s+unsupported/.test(elem.className))
+				actions[2].className = 'button disabled';
+		} else if(/\s+new/.test(elem.className)){	//file/folder creation selected
+			displays[3].style.display = 'block';
+			actions[2].innerHTML = 'save';
+			actions[2].className = 'button';
+			actions[0].className = actions[1].className = actions[3].className = 'button disabled';
+		} else {									//folder selected
+			displays[1].style.display = 'block';
+			actions[2].innerHTML = 'open';
+			actions[2].className = 'button disabled';
+			actions[0].className = actions[1].className = actions[3].className = 'button';
+			actions[3].addEventListener('mousedown', this.close, false);
+
+			//if already selected, return by here
+
+			var curr = elem.parentNode.nextSibling;
+			while(curr){
+				curr.style.width = 0;
+				setTimeout((function(m){ return function(){
+					m.parentNode.removeChild(m);
+				}}(curr)), 550);
+				curr = curr.nextSibling;
+			}
+			
+			//load into new pane
+		}
+	},
+	drop : function(evt){
 	}
 });

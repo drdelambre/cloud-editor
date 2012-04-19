@@ -61,37 +61,31 @@ body
 							| click on the editor to configure its look
 							div <----------------------
 			.ftp-browser
-				.connected
-					.btn change
-					div
-						| not connected
-				.connector
-					.loading <span>...</span>loading<span>...</span>
-					.row.big
-						.title server
-						.input-wrap
-							input
-					.btn-wrap
-						.btn connect
-						.btn-c cancel
-					.row
-						.title username
-						.input-wrap
-							input
-					.row
-						.title password
-						.input-wrap
-							input(type="password")
-					
-				//-
-					.connected
-						.btn change
-						| currently connected to
-						span alex@66.91.23.153
 				.info
-					.blank
+					.action.top
+						.button.disabled rename
+						.button.disabled.last remove
+					.display.blank
 						h1 no file selected
 						h2 make sure to find a good one
+					.display.folder
+						img(src="images/folder.png")
+						.name filename
+						.modified
+							| modified
+							span tuesday
+					.display.file
+						img(src="images/file.png")
+						.name filename
+						.size 30MB
+						.modified
+							| modified
+							span tuesday
+					.display.create
+						.input-wrap
+							input(placeholder="name")
+						.option folder
+						.option.disabled file
 					.action
 						.button.disabled open
 						.button.last cancel
@@ -122,6 +116,9 @@ body
 						.entry.file.unsupported files
 						.entry.file.unsupported files
 						.entry.file files
+						.entry.new
+							span +
+							| new
 					.pane
 						.entry.folder cool
 						.entry.folder cool
