@@ -425,7 +425,7 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 	element: null,
 	files: [], curr: -1,
 
-	mover: null, evts: null, timer: null,
+	mover: null, spacer: null, evts: null, timer: null, left:null,
 	
 
 	init : function(elem){
@@ -498,10 +498,23 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 		window.addEventListener('mouseup', this.kill, false);
 	},
 	move : function(evt){
-		this.evts.push(evt);
-		if(this.timer) return
+		this.evts = evt;
+		evt.preventDefault();
+		if(this.timer) return;
+		this.left = evt.pageX - drdelambre.getOffset(this.mover.target).left + drdelambre.getOffset(this.mover.target.parentNode).left;
+		this.mover.target.className += ' moving';
+		this.mover.target.style.left = (drdelambre.getOffset(this.mover.target).left - drdelambre.getOffset(this.mover.target.parentNode).left) + 'px';
+		this.spacer = document.createElement('div');
+		this.spacer.className = 'entry spacer';
+		this.spacer.innerHTML = 'who\sagoodspacer?';
+		this.spacer.style.height = '2px';
+		this.spacer.style.width = this.mover.target.offsetWidth + 'px';
+		this.mover.target.parentNode.insertBefore(this.spacer, this.mover.target);
 		var throttle = drdelambre.bind(function(){
-			this.evts = [];
+			if(!this.evts) return;
+			var left = this.evts.pageX - this.left;
+			this.mover.target.style.left = left + 'px';
+			this.evts = null;
 		}, this);
 		this.timer = setInterval(throttle, 100);
 		throttle();
@@ -514,9 +527,16 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 			this.select(this.mover);
 			return;
 		}
-		
+
+				
 		clearInterval(this.timer);
-		this.timer = null;
+		this.mover.target.className += ' closing';
+		this.mover.target.style.left = this.spacer.offsetLeft + 'px';
+		setTimeout((function(obj,spacer){ return function(){
+			obj.className = obj.className.replace(/(\s+closing|\s+moving)/g,'');
+			spacer.parentNode.removeChild(spacer);
+		}; })(this.mover.target, this.spacer), 200);
+		this.timer = this.mover = this.spacer = this.left = this.evts = null;
 	}
 });
 
@@ -571,7 +591,8 @@ drdelambre.editor.FtpBrowser = new drdelambre.class({
 		if(/\s+file/.test(elem.className)){			//file selected
 			displays[2].style.display = 'block';
 			actions[2].innerHTML = 'open';
-			actions[0].className = actions[1].className = actions[2].className = actions[3].className = 'button';
+			actions[0].className = actions[2].className = 'button';
+			actions[1].className = actions[3].className = 'button last';
 			actions[3].addEventListener('mousedown', this.close, false);
 			if(/\s+unsupported/.test(elem.className))
 				actions[2].className = 'button disabled';
@@ -579,12 +600,13 @@ drdelambre.editor.FtpBrowser = new drdelambre.class({
 			displays[3].style.display = 'block';
 			actions[2].innerHTML = 'save';
 			actions[2].className = 'button';
-			actions[0].className = actions[1].className = actions[3].className = 'button disabled';
+			actions[0].className = 'button disabled';
+			actions[1].className = actions[3].className = 'button disabled last';
 		} else {									//folder selected
 			displays[1].style.display = 'block';
-			actions[2].innerHTML = 'open';
-			actions[2].className = 'button disabled';
-			actions[0].className = actions[1].className = actions[3].className = 'button';
+			actions[2].innerHTML = 'download';
+			actions[0].className = actions[2].className = "button";
+			actions[1].className = actions[3].className = 'button last';
 			actions[3].addEventListener('mousedown', this.close, false);
 
 			//if already selected, return by here

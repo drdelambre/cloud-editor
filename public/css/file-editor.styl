@@ -26,6 +26,14 @@ transform(val)
 	-o-transform val
 	transform val
 
+selection(val)
+	-webkit-touch-callout none
+	-webkit-user-select none
+	-khtml-user-select none
+	-moz-user-select none
+	-ms-user-select none
+	user-select none
+
 @font-face
 	font-family "mono"
 	src url("../fonts/Inconsolata.otf")
@@ -44,11 +52,13 @@ transform(val)
 	padding-top 1.8em
 	padding-bottom 1.5em
 	perspective 3000px
+	selection none
 
 	.file-slider
 		position absolute
 		top 0
 		width 100%
+		selection none
 
 		.slide
 			white-space nowrap
@@ -69,6 +79,10 @@ transform(val)
 		
 			overflow hidden
 			-webkit-transition margin 0.5s, padding 0.3s, max-width 0.3s, opacity 0.5s
+			-moz-transition margin 0.5s, padding 0.3s, max-width 0.3s, opacity 0.5s
+			-ms-transition margin 0.5s, padding 0.3s, max-width 0.3s, opacity 0.5s
+			-o-transition margin 0.5s, padding 0.3s, max-width 0.3s, opacity 0.5s
+			transition margin 0.5s, padding 0.3s, max-width 0.3s, opacity 0.5s
 
 			span
 				color #000
@@ -83,7 +97,19 @@ transform(val)
 		.entry.open
 			box-shadow 0 2px 5px rgba(0,0,0,0.5)
 			opacity 1
-
+		.entry.spacer
+			opacity 0
+			padding 0
+		.entry.moving
+			position absolute
+			z-index 5
+		.entry.closing
+			-webkit-transition left 0.3s
+			-moz-transition left 0.3s
+			-ms-transition left 0.3s
+			-o-transition left 0.3s
+			transition left 0.3s
+			
 		.entry.removed
 			max-width 0
 			padding 0.2em 0
@@ -296,11 +322,11 @@ transform(val)
 					color #fff
 					background-color #00bfff
 				.entry.folder
-					background-image url(/images/folder.png)
+					background-image url(../images/folder.png)
 				.entry.folder.selected
-					background-image url(/images/folder_open.png)
+					background-image url(../images/folder_open.png)
 				.entry.file
-					background-image url(/images/file.png)
+					background-image url(../images/file.png)
 				.entry.file.unsupported
 					opacity 0.2
 				.entry.file.unsupported.selected
