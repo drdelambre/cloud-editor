@@ -4,11 +4,9 @@
 
 /* =Editor
 *************************************************/
-.editor 
-	border-radius 0.8em
+.editor
 	position relative
 	height 20em
-	background #fff
 	font-family mono
 	-webkit-text-size-adjust none
 	-moz-text-size-adjust none
@@ -34,15 +32,20 @@
 		height 100%
 		z-index 2
 		color #aaa
-		background #eee
-		border-radius 0.8em 0 0 0.8em
 		float left
 		text-align right
 		overflow hidden
 
+		-webkit-transition color 0.3s,text-shadow 0.3s
+		-moz-transition color 0.3s,text-shadow 0.3s
+		-o-transition color 0.3s,text-shadow 0.3s
+		transition color 0.3s,text-shadow 0.3s
+
 		.line 
+			line-height 1.3em
 			height 1.3em
-			padding 0 0.75em
+			padding 0 0.5em
+			box-sizing border-box
 
 		.line.cursor 
 			background #ddd
@@ -83,7 +86,11 @@
 		overflow hidden
 		position relative
 		height 100%
-		border-radius 0 0.8em 0.8em 0
+
+		-webkit-transition color 0.3s,text-shadow 0.3s
+		-moz-transition color 0.3s,text-shadow 0.3s
+		-o-transition color 0.3s,text-shadow 0.3s
+		transition color 0.3s,text-shadow 0.3s
 	
 		.line-marker 
 			position absolute
@@ -92,14 +99,18 @@
 			height 1.3em
 			top 0
 			outline none
-		
+
+			-webkit-transition opacity 0.3s
+			-moz-transition opacity 0.3s
+			transition opacity 0.3s
+
 			.cursor 
 				height 1.3em
 				position absolute
 				top 0
 				width 0.15em
 				left 0
-				margin-left 0.75em
+				margin-left 0.1em
 			
 				.marker 
 					height 1.3em
@@ -132,7 +143,7 @@
 	
 		.content 
 			height 100%
-			padding 0 0.75em
+			padding 0 0.75em 0 0.1em
 			position relative
 			z-index 6
 			overflow hidden
@@ -141,20 +152,16 @@
 			cursor text
 			line-height 1.3em
 			height 1.3em
+			box-sizing border-box
 			white-space pre
 			position relative
 			outline none
 		
-			-webkit-transition color 0.5s,text-shadow 0.5s
-			-moz-transition color 0.5s,text-shadow 0.5s
-			-o-transition color 0.5s,text-shadow 0.5s
-			transition color 0.5s,text-shadow 0.5s
-	
 			span 
-				-webkit-transition color 0.5s,text-shadow 0.5s
-				-moz-transition color 0.5s,text-shadow 0.5s
-				-o-transition color 0.5s,text-shadow 0.5s
-				transition color 0.5s,text-shadow 0.5s
+				-webkit-transition color 0.3s,text-shadow 0.3s
+				-moz-transition color 0.3s,text-shadow 0.3s
+				-o-transition color 0.3s,text-shadow 0.3s
+				transition color 0.3s,text-shadow 0.3s
 	
 			span.folded 
 				padding 0 0.2em
@@ -209,13 +216,13 @@
 /* =Shameless Monokai Ripoff
 *************************************************/
 .editor
-	.gutter 
-		color #e8e8ef
-		background #87A96B
+	background #272822
+
+	.gutter
+		color #555
 
 	.window 
 		color #F8F8F2
-		background #272822
 	
 		.line-marker
 			background #302f29 
@@ -237,5 +244,32 @@
 	span.atom
 		color #FD971F 
 
+.fuzz
+	.gutter
+		color transparent
+		text-shadow 0 0 3px #555
+	.window 
+		color transparent
+		text-shadow 0 0 3px #F8F8F2
+		.line-marker
+			opacity 0.3
+	span.keyword
+		color transparent
+		text-shadow 0 0 3px #66D9EF 
+	span.comment
+		color transparent
+		text-shadow 0 0 3px #75715E 
+	span.operator
+		color transparent
+		text-shadow 0 0 3px #F92672 
+	span.number
+		color transparent
+		text-shadow 0 0 3px #AE81FF 
+	span.string
+		color transparent
+		text-shadow 0 0 3px #E6DB74 
+	span.atom
+		color transparent
+		text-shadow 0 0 3px #FD971F 
 
 

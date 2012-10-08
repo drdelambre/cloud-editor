@@ -1,44 +1,120 @@
-drdelambre.editor = drdelambre.editor || {
-	cache: {},
+$dd.editor = $dd.editor || {
 	settings: {
 		tabLength: 4
-	},
-
-	init : function(){},
-	publish : function(topic, args){
-		if(Object.prototype.toString.apply(args) !== '[object Array]')
-			args = [args];
-	
-		var cache = drdelambre.editor.cache,
-			ni, t;
-		for(t in cache){
-			if(topic.match(new RegExp(t)))
-				for(ni = cache[t].length; ni!=0;)
-					cache[t][--ni].apply(drdelambre, args || []);
-		}
-	},
-	subscribe : function(topic, callback){
-		var cache = drdelambre.editor.cache;
-		topic = '^' + topic.replace(/\*/,'.*');
-		if(!cache[topic])
-			cache[topic] = [];
-		cache[topic].push(callback);
-		return [topic, callback];
-	},
-	unsubscribe : function(handle){
-		var cache = drdelambre.editor.cache,
-			t = handle[0];
-		if(!cache[t]) return;
-		for(var ni in cache[t])
-			if(cache[t][ni] == handle[1])
-				cache[t].splice(ni, 1);
-	},
+	}
 };
+
+$dd.editor.Styler = $dd.object({
+	element: null,
+	style: null,
+	sheet: null,
+
+	init : function(elem, style){
+		this.element = elem;
+		this.load(style||{});
+		var inp = this.element.getElementsByTagName('input')[0],
+			sel = this.element.getElementsByTagName('select')[0],
+			options = '';
+
+		for(var ni in this.style)
+			options += '<option value=' + ni + '>' + ni + '</option>';
+		sel.innerHTML = options;
+		sel.selectedIndex = 0;
+
+		inp.value = this.style[Object.keys(this.style)[0]];
+		inp.addEventListener('input',this.validateColor,false);
+		sel.addEventListener('change', this.loadColor,false);
+		$dd.subscribe('/editor/settings/color', this.apply);
+	},
+	load : function(style){
+		this.style = $dd.extend(this.style||{
+			background: '#272822',
+			highlight: '#49483e',
+			line: '#302f29',
+			cursor: '#aaa',
+
+			text: '#f8f8f2',
+			gutter: '#555',
+			keyword: '#66D9EF',
+			comment: '#75715E',
+			operator: '#F92672',
+			number: '#AE81FF',
+			string: '#E6DB74',
+			atom: '#FD971F'
+		},style);
+		var rules = '', normal, fuzz;
+		for(var ni in this.style){
+			if(/^background$/.test(ni))
+				rules += '.editor {background: ' + this.style[ni] + '} ';
+			else if(/^(highlight|line|cursor)$/.test(ni))
+				rules += '.editor .line-marker' + (/^highlight$/.test(ni)?' .select':'') + (/^cursor$/.test(ni)?' .marker':'') + ' {background:' + this.style[ni] + '} ';
+			else if(/^text$/.test(ni)){
+				rules += '.editor .window {color:' + this.style[ni] + '} ';
+				rules += '.fuzz .window {color:transparent;text-shadow:0 0 3px ' + this.style[ni] + '} ';
+			} else if(/^gutter$/.test(ni)){
+				rules += '.editor .gutter {color:' + this.style[ni] + '} ';
+				rules += '.fuzz .gutter {color:transparent;text-shadow:0 0 3px ' + this.style[ni] + '} ';
+			} else {
+				rules += '.editor span.' + ni + ' {color:' + this.style[ni] + '} ';
+				rules += '.fuzz span.' + ni + ' {color:transparent;text-shadow:0 0 3px ' + this.style[ni] + '} ';
+			}
+		}
+		if(this.sheet)
+			this.sheet.parentNode.removeChild(this.sheet);
+		this.sheet = document.createElement('style');
+		this.sheet.innerHTML = rules;
+		document.body.appendChild(this.sheet);
+	},
+	apply : function(){
+		var inp = this.element.getElementsByTagName('input')[0],
+			sel = this.element.getElementsByTagName('select')[0],
+			prop = {};
+		prop[sel.options[sel.selectedIndex].value] = inp.value;
+		this.load(prop);
+	},
+	loadColor : function(){
+		var inp = this.element.getElementsByTagName('input')[0],
+			sel = this.element.getElementsByTagName('select')[0];
+		inp.value = this.style[sel.options[sel.selectedIndex].value];
+	},
+	normalizeColor : function(colorStr){
+		var hex = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'], colors;
+		if(colorStr.match(/transparent/i) || colorStr.match(/rgba\(\s*0,\s*0,\s*0,\s*0\)/))
+			return '';
+		if(/rgb[a]?\((\s*\d*[,]?){3,4}\)/.test(colorStr)){
+			colors = colorStr
+					.replace(/^rgb[a]?\(/, '')
+					.replace(/\)\s*$/, '')
+					.replace(/\s*,\s*/g, ',')
+					.split(','),
+					f = l = '0';
+			return	hex[(colors[0]/16)&~0] + hex[colors[0]%16] +
+					hex[(colors[1]/16)&~0] + hex[colors[1]%16] +
+					hex[(colors[2]/16)&~0] + hex[colors[2]%16];
+		}
+		if(/^#?[\da-fA-F]{3,3}$/.test(colorStr)){
+			colors = colorStr.replace(/#/g, '').split('');
+			return colors[0] + colors[0] + colors[1] + colors[1] + colors[2] + colors[2];
+		} else if(!/^#?[\da-fA-F]{6}$/.test(colorStr))
+			return '';
+		return colorStr.replace(/#/, '');
+	},
+	validateColor : function(evt){
+		if(!evt.target.value.length || /^#?([\da-fA-F]{3}|[\da-fA-F]{6})$/.test(evt.target.value)){
+			evt.target.className = evt.target.className.replace(/\s*invalid/g,'');
+			$dd.publish('/editor/settings/color');
+			return true;
+		}
+		if(!evt.target.className.match(/invalid/))
+			evt.target.className += ' invalid';
+		return false;
+	}
+});
 
 /*
  *		class:    FileEditor
- *		module:   drdelambre.editor
- *		author:   Alex Boatwright (drdelambre@gmail.com)
+ *		module:   $dd.editor
+ *		author:   Alex Boatwright ($dd@gmail.com)
  *
  *		description:
  *			This class manages multiple file editors for tabbed browsing
@@ -47,31 +123,32 @@ drdelambre.editor = drdelambre.editor || {
  *			taken care of.
  *
  */
-drdelambre.editor.FileEditor = new drdelambre.class({
+$dd.editor.FileEditor = $dd.object({
 	element: null,
 	slider: null,
 	editor: null,
 	browser: null,
+	style: null,
 
 	init : function(elem){
 		this.element = elem;
-		this.editor = new drdelambre.editor.Editor(this.element.getElementsByClassName('editor')[0]);
-		drdelambre.editor.subscribe('/editor/caret', this.updateCount);
+		this.editor = new $dd.editor.Editor(this.element.getElementsByClassName('editor')[0]);
+		$dd.subscribe('/editor/caret', this.updateCount);
 
 		this.editor.element.addEventListener('dragover', this.hover, false);
 		this.editor.element.addEventListener('drop', this.drop, false);
 
-		this.browser = new drdelambre.editor.FtpBrowser(this.element.getElementsByClassName('ftp-browser')[0]);
-		this.slider = new drdelambre.editor.FileSlider(this.element.getElementsByClassName('file-slider')[0]);
+		this.browser = new $dd.editor.FileBrowser(this.element.getElementsByClassName('file-browser')[0]);
+		this.slider = new $dd.editor.FileSlider(this.element.getElementsByClassName('file-slider')[0]);
 		
 		var cursor = this.element.getElementsByClassName('footer')[0].getElementsByClassName('line-count')[0].getElementsByTagName('span');
 		cursor[0].addEventListener('mouseup', this.openLine, false);
 		cursor[1].addEventListener('mouseup', this.openChar, false);
-		
+
 		this.element.getElementsByClassName('footer')[0].getElementsByClassName('set-button')[0].addEventListener('mousedown', this.toggleSettings, false);
 		var select = this.element.getElementsByClassName('footer')[0].getElementsByTagName('select')[0],
 			ni = 0;
-		for(var lang in drdelambre.editor.mode){
+		for(var lang in $dd.editor.mode){
 			if(lang == 'PlainText') ni = select.getElementsByTagName('option').length;
 			var opt = document.createElement('option');
 			opt.value = lang;
@@ -81,29 +158,28 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		
 		select.selectedIndex = ni;
 		select.addEventListener('change', this.languageChange, false);
-		
-		this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].addEventListener('click', this.selectRule, false);
 
-		drdelambre.editor.subscribe('/editor/settings/color', this.apply);
-		drdelambre.editor.subscribe('/editor/file/select', this.loadFile);
-		drdelambre.editor.subscribe('/editor/file/open', this.showBrowser);
+		this.style = new $dd.editor.Styler(this.element.getElementsByClassName('settings')[0].getElementsByClassName('menu')[0]);
+
+		$dd.subscribe('/editor/file/select', this.loadFile);
+		$dd.subscribe('/editor/file/open', this.showBrowser);
 	},
 	open : function(path){
-		var file = new drdelambre.editor.File;
+		var file = new $dd.editor.File();
 		file.path = path;
 		file.name = path;
-		file.document = new drdelambre.editor.Document();
+		file.document = new $dd.editor.Document();
 		this.editor.document = file.document;
 		if(path){
-			var ret = drdelambre.bind(function(resp){
+			var ret = function(resp){
 				var mime = request.req.getResponseHeader('Content-Type').replace(/;.*/,'');
-				for(var type in drdelambre.editor.mode){
-					if(mime == new drdelambre.editor.mode[type]().mime)
-						file.document.mode = new drdelambre.editor.mode[type]();
+				for(var type in $dd.editor.mode){
+					if(mime == new $dd.editor.mode[type]().mime)
+						file.document.mode = new $dd.editor.mode[type]();
 				}
 				file.document.fromString(resp);
-			}, this);
-			var request = new drdelambre.ajax({
+			}.bind(this);
+			var request = new $dd.ajax({
 				url: path,
 				success: ret
 			});
@@ -115,6 +191,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 		this.element.className = this.element.className.replace(/\s+edit/g,'');
 		this.editor.document = file.document;
 	},
+	loadStyle : function(style){ this.style.load(style); },
 	showBrowser : function(){
 		this.element.className = this.element.className.replace(/\s+edit/g,'');
 	},
@@ -222,161 +299,16 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 	},
 	
 	toggleSettings : function(evt){
-		var help = this.element.getElementsByClassName('settings')[0]
-				.getElementsByClassName('right')[0]
-				.getElementsByClassName('help')[0],
-			menu = this.element.getElementsByClassName('settings')[0]
-				.getElementsByClassName('right')[0]
-				.getElementsByClassName('menu');
-
 		if(/\s+edit/.test(this.element.className)){
 			this.browser.close();
-			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sedit/i,'');
+			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\s(fuzz|edit)/gi,'');
 		} else {
-			this.element.className += ' edit';
-			help.style.display = '';
-			if(menu.length) menu[0].parentNode.removeChild(menu[0]);
-			var prev = this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0];
-			prev.innerHTML = this.editor.element.innerHTML;
-			var lines = prev.getElementsByClassName('gutter')[0].getElementsByClassName('line');
-			lines[1].parentNode.removeChild(lines[1]);
-			lines[0].parentNode.removeChild(lines[0]);
-			lines = prev.getElementsByClassName('content')[0].getElementsByClassName('line');
-			for(var ni = 0; ni < lines.length; ni++){
-				lines[ni].innerHTML = lines[ni].innerHTML.replace(new RegExp('\\s{' + drdelambre.editor.settings.tabLength + '}', 'g'), '<span class="tab">' + Array(drdelambre.editor.settings.tabLength + 1).join('&nbsp;') + '</span>');
-			}
-			lines[1].parentNode.removeChild(lines[1]);
-			lines[0].parentNode.removeChild(lines[0]);
+			this.element.className = this.element.className.split(/\s/).join(' ').replace(/\s(fuzz|edit)/gi,'') + ' fuzz edit';
 		}
-	},
-	selectRule : function(evt){
-		var help = this.element.getElementsByClassName('settings')[0]
-				.getElementsByClassName('right')[0]
-				.getElementsByClassName('help')[0];
-		if(help.style.display != 'none')
-			help.style.display = 'none';
-		var elem = evt.target;
-		while(elem != document.body){
-			if(elem.nodeType == 1 &&
-				(elem.nodeName.toLowerCase() == 'span' ||
-				 elem.className == 'window' ||
-				 elem.className == 'gutter' ||
-				 elem.className == 'select' ||
-				 elem.className == 'line-marker'))
-				break;
-			if(!elem.parentNode)
-				elem = document.body;
-			else
-				elem = elem.parentNode;
-		}
-		
-		if(elem == document.body) return;
-		this.change(elem);
-	},
-	change : function(elem){
-		var menu = this.element.getElementsByClassName('settings')[0].getElementsByClassName('menu');
-		if(!menu.length){
-			var men = document.createElement('div');
-			men.className = 'menu';
-			men.innerHTML = '<h1></h1><div class="tab" style="display:none"><div class="row"><div class="title">tab-space</div><input type="number" min="1"></div></div><div class="other"><div class="row"><div class="title">font color</div><input></div><div class="row"><div class="title">background</div><input></div></div>';
-			var inps = men.getElementsByTagName('input');
-			inps[0].addEventListener('input', this.setTab, false);
-			inps[1].addEventListener('input', this.validateColor, false);
-			inps[2].addEventListener('input', this.validateColor, false);
-			this.element.getElementsByClassName('settings')[0].getElementsByClassName('right')[0].appendChild(men);
-			menu = men;
-		} else
-			menu = menu[0];
-			
-		var tab = menu.getElementsByClassName('tab')[0],
-			other = menu.getElementsByClassName('other')[0];
-
-		menu.getElementsByTagName('h1')[0].innerHTML = 'Element: <span>' + elem.className + '</span>';
-
-		if(elem.className == 'tab'){
-			var inps = menu.getElementsByTagName('input');
-			tab.style.display = '';
-			other.style.display = 'none';
-
-			inps[0].value = drdelambre.editor.settings.tabLength;			
-			return;
-		}
-
-		tab.style.display = 'none';
-		other.style.display = '';
-		var inps = menu.getElementsByTagName('input'),
-			style = document.defaultView.getComputedStyle(elem,null);
-		inps[1].value = this.normalizeColor(style.getPropertyValue('color'));
-		inps[2].value = this.normalizeColor(style.getPropertyValue('background-color'));
-	},
-	setTab : function(evt){
-		var num = parseInt(evt.target.value);
-		if(isNaN(num) || num < 1) return;
-		drdelambre.editor.settings.tabLength = num;
-		var menu = this.element.getElementsByClassName('settings')[0].getElementsByClassName('preview')[0].getElementsByTagName('span');
-		for(var ni = 0; ni < menu.length; ni++){
-			if(!menu[ni].className.match(/tab/))
-				continue;
-			menu[ni].innerHTML = Array(num + 1).join(' ');
-		}
-		this.editor.pager.updateLine(this.editor.doc, 0);
-	},
-	apply : function(){
-		var inps = this.element
-				.getElementsByClassName('settings')[0]
-				.getElementsByClassName('menu')[0]
-				.getElementsByTagName('input'),
-			elem = this.element
-				.getElementsByClassName('settings')[0]
-				.getElementsByClassName('menu')[0]
-				.getElementsByTagName('h1')[0]
-				.getElementsByTagName('span')[0]
-				.innerHTML,
-			style = document.styleSheets[document.styleSheets.length - 1],
-			index = style.cssRules.length,
-			rule = ".editor " + (elem!='window'&&elem!='gutter'?'span':'') + "." + elem + " {";
-		if(inps[1].value.length && !inps[1].className.match(/invalid/))
-			rule += "color:#" + inps[1].value.replace(/#/g,'') + ';'
-		if(inps[2].value.length && !inps[2].className.match(/invalid/))
-			rule += "background:#" + inps[2].value.replace(/#/g,'') + ';'
-		rule += "}";
-		style.insertRule(rule, index);
-	},
-	normalizeColor : function(colorStr){
-		var hex = ['0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'];
-		if(colorStr.match(/transparent/i) || colorStr.match(/rgba\(\s*0,\s*0,\s*0,\s*0\)/))
-			return '';
-		if(/rgb[a]?\((\s*\d*[,]?){3,4}\)/.test(colorStr)){
-			var colors = colorStr
-					.replace(/^rgb[a]?\(/, '')
-					.replace(/\)\s*$/, '')
-					.replace(/\s*,\s*/g, ',')
-					.split(','),
-					f = l = '0';
-			return	hex[(colors[0]/16)&~0] + hex[colors[0]%16] +
-					hex[(colors[1]/16)&~0] + hex[colors[1]%16] +
-					hex[(colors[2]/16)&~0] + hex[colors[2]%16];
-		}
-		if(/^#?[\da-fA-F]{3,3}$/.test(colorStr)){
-			var colors = colorStr.replace(/#/g, '').split('');
-			return colors[0] + colors[0] + colors[1] + colors[1] + colors[2] + colors[2];
-		} else if(!/^#?[\da-fA-F]{6}$/.test(colorStr))
-			return ''
-		return colorStr.replace(/#/, '');
-	},
-	validateColor : function(evt){
-		if(!evt.target.value.length || /^#?([\da-fA-F]{3}|[\da-fA-F]{6})$/.test(evt.target.value)){
-			evt.target.className = evt.target.className.replace(/\s*invalid/g,'');
-			drdelambre.editor.publish('/editor/settings/color');
-			return true;
-		}
-		if(!evt.target.className.match(/invalid/))
-			evt.target.className += ' invalid';
-		return false;
 	},
 	languageChange : function(evt){
 		var lang = evt.target.options[evt.target.selectedIndex].value;
-		this.editor.doc.mode = new drdelambre.editor.mode[lang]();
+		this.editor.doc.mode = new $dd.editor.mode[lang]();
 		this.editor.pager.updateLine(this.editor.doc, 0);
 	},
 	
@@ -394,7 +326,7 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			return;
 
 		var reader = new FileReader();
-		reader.onload = drdelambre.bind(function(evt){
+		reader.onload = function(evt){
 			var font = evt.target.result;
 			if(!evt.objectUrl){
 				var dataURL = font.split("base64");
@@ -409,19 +341,19 @@ drdelambre.editor.FileEditor = new drdelambre.class({
 			document.styleSheets[0].insertRule(fontStyle,0);
 			this.editor.element.getElementsByClassName('window')[0].style.fontFamily = name;
 			this.editor.pager.resetRight();
-		},this);
+		}.bind(this);
 		reader.readAsDataURL(file);
 	},
 });
 
-drdelambre.editor.File = new drdelambre.class({
+$dd.editor.File = new $dd.object({
 	name: '',
 	path: '',
 	document: null,
 	view: 0
 });
 
-drdelambre.editor.FileSlider = new drdelambre.class({
+$dd.editor.FileSlider = new $dd.object({
 	element: null,
 	files: [], curr: -1,
 
@@ -454,14 +386,14 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 		if(evt.target.className.match(/\s+selected/))
 			return
 		if(evt.target.className.match(/open/)){
-			drdelambre.editor.publish('/editor/file/open');
+			$dd.publish('/editor/file/open');
 			return;
 		}
 
 		this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '');
 		this.curr = evt.target.getElementsByTagName('input')[0].value;
 		this.files[this.curr].element.className += ' selected';
-		drdelambre.editor.publish('/editor/file/select', this.files[this.curr]);
+		$dd.publish('/editor/file/select', this.files[this.curr]);
 	},
 	remove : function(evt){
 		var id = evt.target.parentNode.getElementsByTagName('input')[0].value,
@@ -471,7 +403,7 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 		setTimeout(function(){ elem.parentNode.removeChild(elem); },500);
 
 		if(id == 0 && this.files.length == 1){
-			drdelambre.editor.publish('/editor/file/open');
+			$dd.publish('/editor/file/open');
 			return;
 		}
 		
@@ -481,7 +413,7 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 
 		if(elem.className.match(/\s+selected/)){
 			this.files[this.curr].element.className = this.files[this.curr].element.className.replace(/\s*selected/, '') + ' selected';
-			drdelambre.editor.publish('/editor/file/select', this.files[this.curr]);
+			$dd.publish('/editor/file/select', this.files[this.curr]);
 		}
 		
 		for(var ni = 0; ni < this.files.length; ni++)
@@ -501,21 +433,21 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 		this.evts = evt;
 		evt.preventDefault();
 		if(this.timer) return;
-		this.left = evt.pageX - drdelambre.getOffset(this.mover.target).left + drdelambre.getOffset(this.mover.target.parentNode).left;
+		this.left = evt.pageX - $dd.getOffset(this.mover.target).left + $dd.getOffset(this.mover.target.parentNode).left;
 		this.mover.target.className += ' moving';
-		this.mover.target.style.left = (drdelambre.getOffset(this.mover.target).left - drdelambre.getOffset(this.mover.target.parentNode).left) + 'px';
+		this.mover.target.style.left = ($dd.getOffset(this.mover.target).left - $dd.getOffset(this.mover.target.parentNode).left) + 'px';
 		this.spacer = document.createElement('div');
 		this.spacer.className = 'entry spacer';
 		this.spacer.innerHTML = 'who\sagoodspacer?';
 		this.spacer.style.height = '2px';
 		this.spacer.style.width = this.mover.target.offsetWidth + 'px';
 		this.mover.target.parentNode.insertBefore(this.spacer, this.mover.target);
-		var throttle = drdelambre.bind(function(){
+		var throttle = function(){
 			if(!this.evts) return;
 			var left = this.evts.pageX - this.left;
 			this.mover.target.style.left = left + 'px';
 			this.evts = null;
-		}, this);
+		}.bind(this);
 		this.timer = setInterval(throttle, 100);
 		throttle();
 	},
@@ -540,19 +472,26 @@ drdelambre.editor.FileSlider = new drdelambre.class({
 	}
 });
 
-drdelambre.editor.FtpBrowser = new drdelambre.class({
+$dd.editor.FileBrowser = new $dd.object({
 	element: null,
-	
+	pane: null,
+	currPane: 0,
+	socket: null,
+
 	init : function(elem){
 		this.element = elem;
+		this.pane = [];	//the folder stack
 		
 		this.element.addEventListener('drop', this.drop, false);
-		var news = this.element.getElementsByClassName('entry');
-		for(var ni = 0; ni < news.length; ni++)
-			news[ni].addEventListener('mousedown', this.load, false);
-		var actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
-		actions[3].addEventListener('mousedown', this.close, false);
-		drdelambre.editor.subscribe('/editor/file/open', this.open);
+		var actions = this.element.getElementsByClassName('login')[0].getElementsByClassName('button');
+		actions[2].addEventListener('mousedown', this.close, false);
+
+		$dd.subscribe('/editor/file/open', this.open);
+		
+		this.socket = io.connect('/');
+		this.socket.on('path', function(data){
+			console.log(data);
+		});
 	},
 
 	open : function(evt){
@@ -561,68 +500,53 @@ drdelambre.editor.FtpBrowser = new drdelambre.class({
 	close : function(evt){
 		this.element.className = this.element.className.replace(/\s+open/g,'');
 	},
-	load : function(evt){
-		var elem = evt.target;
-		while(elem != document.body){
-			if((elem.className||'').match(/entry/))
-				break;
-			if(!elem.parentNode)
-				elem = document.body;
-			else
-				elem = elem.parentNode;
-		}
-		if(elem == document.body) return;
-		
-		var news = elem.parentNode.getElementsByClassName('entry');
-		for(var ni = 0; ni < news.length; ni++){
-			if(!news[ni].className.match(/\s+selected/))
-				continue;
-			news[ni].className = news[ni].className.replace(/\s+selected/g,'');
-			break;
-		}
-		elem.className += ' selected';
-
-		var actions = this.element.getElementsByClassName('info')[0].getElementsByClassName('button');
-		actions[3].removeEventListener('mousedown', this.close, false);
-		
-		var displays = this.element.getElementsByClassName('display');
-		for(var ni = 0; ni < displays.length; ni++)
-			displays[ni].style.display = 'none';
-		if(/\s+file/.test(elem.className)){			//file selected
-			displays[2].style.display = 'block';
-			actions[2].innerHTML = 'open';
-			actions[0].className = actions[2].className = 'button';
-			actions[1].className = actions[3].className = 'button last';
-			actions[3].addEventListener('mousedown', this.close, false);
-			if(/\s+unsupported/.test(elem.className))
-				actions[2].className = 'button disabled';
-		} else if(/\s+new/.test(elem.className)){	//file/folder creation selected
-			displays[3].style.display = 'block';
-			actions[2].innerHTML = 'save';
-			actions[2].className = 'button';
-			actions[0].className = 'button disabled';
-			actions[1].className = actions[3].className = 'button disabled last';
-		} else {									//folder selected
-			displays[1].style.display = 'block';
-			actions[2].innerHTML = 'download';
-			actions[0].className = actions[2].className = "button";
-			actions[1].className = actions[3].className = 'button last';
-			actions[3].addEventListener('mousedown', this.close, false);
-
-			//if already selected, return by here
-
-			var curr = elem.parentNode.nextSibling;
-			while(curr){
-				curr.style.width = 0;
-				setTimeout((function(m){ return function(){
-					m.parentNode.removeChild(m);
-				}}(curr)), 550);
-				curr = curr.nextSibling;
-			}
-			
-			//load into new pane
-		}
-	},
 	drop : function(evt){
+	}
+});
+
+$dd.editor.FilePane = new $dd.object({
+	element: null,
+	selected: false,
+	entries: null,
+	
+	init : function(elem){
+		this.element = elem;
+		this.entries = [];
+	},
+	load : function(json){
+		var elem;
+		for(var ni = 0, ents = json.entries, len = ents.length; ni < len; ni++){
+			elem = document.createElement('div');
+			elem.className = 'entry ' + ents[ni].type;
+			elem.addEventListener('mousedown', (function(index){
+				return function(){
+					this.open(index);
+				}.bind(this);
+			})(ni), false);
+			elem.innerHTML = ents[ni].name;
+			this.element.appendChild(elem);
+			this.entries.push({
+				element: elem,
+				type: ents[ni].type,
+				path: json.path + ents[ni].name
+			});
+		}
+		elem = document.createElement('div');
+		elem.className = 'entry new';
+		elem.addEventListener('mousedown', this.add, false);
+		elem.innerHTML = '<span>+</span>new';
+		this.element.appendChild(elem);
+	},
+	add : function(evt){},
+	open : function(index){
+		var sel = this.entries[this.selected].element;
+		sel.className = sel.className.replace(/\s+selected/g,'');
+		if(index == this.selected){
+			$dd.publish('/editor/file/deselect', this);
+			return;
+		}
+		this.entries[index].element.className += ' selected';
+		this.selected = index;
+		$dd.publish('/editor/file/select/' + (this.entries[index].type == 'folder'?'folder':'file'), this);
 	}
 });

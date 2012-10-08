@@ -1,43 +1,12 @@
-drdelambre.editor = drdelambre.editor || {
-	cache: {},
+$dd.editor = $dd.editor || {
 	settings: {
 		tabLength: 4
-	},
-
-	init : function(){},
-	publish : function(topic, args){
-		if(Object.prototype.toString.apply(args) !== '[object Array]')
-			args = [args];
-	
-		var cache = drdelambre.editor.cache,
-			ni, t;
-		for(t in cache){
-			if(topic.match(new RegExp(t)))
-				for(ni = cache[t].length; ni!=0;)
-					cache[t][--ni].apply(drdelambre, args || []);
-		}
-	},
-	subscribe : function(topic, callback){
-		var cache = drdelambre.editor.cache;
-		topic = '^' + topic.replace(/\*/,'.*');
-		if(!cache[topic])
-			cache[topic] = [];
-		cache[topic].push(callback);
-		return [topic, callback];
-	},
-	unsubscribe : function(handle){
-		var cache = drdelambre.editor.cache,
-			t = handle[0];
-		if(!cache[t]) return;
-		for(var ni in cache[t])
-			if(cache[t][ni] == handle[1])
-				cache[t].splice(ni, 1);
 	},
 };
 
 /*
  *		class:    Editor
- *		module:   drdelambre.editor
+ *		module:   $dd.editor
  *		author:   Alex Boatwright (drdelambre@gmail.com)
  *
  *		description:
@@ -46,7 +15,7 @@ drdelambre.editor = drdelambre.editor || {
  *			document space. Most of the file editing UI goes here.
  *
  */
-drdelambre.editor.Editor = new drdelambre.class({
+$dd.editor.Editor = new $dd.object({
 	element: null,
 	pager: null,
 	doc: null,
@@ -60,30 +29,30 @@ drdelambre.editor.Editor = new drdelambre.class({
 		this.element = elem;
 		if(!this.element)
 			this.element = this.create();
-		this.doc = doc || new drdelambre.editor.Document();
-		this.pager = new drdelambre.editor.Pager(this.element.getElementsByClassName('content')[0], this.doc, this.element.getElementsByClassName('gutter')[0]);
+		this.doc = doc || new $dd.editor.Document();
+		this.pager = new $dd.editor.Pager(this.element.getElementsByClassName('content')[0], this.doc, this.element.getElementsByClassName('gutter')[0]);
 		this.cursor = this.element.getElementsByClassName('cursor')[0];
 		this.textarea = this.element.getElementsByTagName('textarea')[0];
 
-		drdelambre.editor.subscribe('/editor/caret', this.moveCursor);
-		drdelambre.editor.subscribe('/editor/scroll', this.moveCursor);
-		drdelambre.editor.subscribe('/editor/selection', this.setText);
+		$dd.subscribe('/editor/caret', this.moveCursor);
+		$dd.subscribe('/editor/scroll', this.moveCursor);
+		$dd.subscribe('/editor/selection', this.setText);
 
 		window.addEventListener('mousedown', this.focus, false);
 
-		if(drdelambre.isTouch){
+		if($dd.isTouch){
 			this.element.className += ' touch';
 
 			this.element.getElementsByClassName('key-toggle')[0].addEventListener('click', this.toggleKeyboard, false);
 			this.textarea.addEventListener('input', this.input, false);
 			this.element.addEventListener('touchstart', this.startTouch, false);
-			this.element.getElementsByTagName('pre')[0].addEventListener('mouseup', drdelambre.bind(function(evt){
+			this.element.getElementsByTagName('pre')[0].addEventListener('mouseup', function(evt){
 				window.getSelection().removeAllRanges();
 				this.element.getElementsByTagName('pre')[0].innerHTML = '';
 				if(this.showKeys){
 					this.textarea.focus();
 				}
-			},this));
+			}.bind(this));
 			window.addEventListener('keydown', this.keydown, false);
 		} else {
 			this.textarea.addEventListener('input', this.input, false);
@@ -92,10 +61,10 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.element.addEventListener('mousedown', this.start, false);
 		}
 	},
-	get document(){
+	_getdocument : function(){
 		return this.doc;
 	},
-	set document(doc){
+	_setdocument : function(doc){
 		this.doc = doc;
 		if(!this.pager)
 			return;
@@ -107,6 +76,12 @@ drdelambre.editor.Editor = new drdelambre.class({
 		div.className = 'editor';
 		div.innerHTML = '<textarea></textarea><div class="gutter"></div><div class="window"><div class="line-marker" style="display:none;"><div class="select top"></div><div class="select middle"></div><div class="select bottom"></div><div class="cursor"><div class="marker"></div><div class="tag"></div></div></div><div class="content"></div><pre contenteditable=true></pre></div><div class="key-toggle"><img src="images/keyboard.png" /> keyboard</div>';
 		return div;
+	},
+	blur : function(){
+		this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sfuzz/i,'') + ' fuzz';
+	},
+	unblur : function(){
+		this.element.className = this.element.className.split(/\s/).join(' ').replace(/\sfuzz/i,'');
 	},
 	focus : function(evt){
 		var elem = evt.target;
@@ -132,7 +107,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 			window.removeEventListener('keydown', this.keydown, false);
 			this.element.getElementsByClassName('line-marker')[0].style.display = 'none';
 			this.hasFocus = false;
-			if(drdelambre.isTouch && this.showKeys)
+			if($dd.isTouch && this.showKeys)
 				this.toggleKeyboard();
 		}
 	},
@@ -162,11 +137,11 @@ drdelambre.editor.Editor = new drdelambre.class({
 					while(curr <= end){
 						text = this.doc.lines[curr].text;
 						if(evt.shiftKey){
-							text = /^\s/.test(text)?text.replace(new RegExp("^(\\t|\\s{" + drdelambre.editor.settings.tabLength + "}|\\s*)"), ''):text;
+							text = /^\s/.test(text)?text.replace(new RegExp("^(\\t|\\s{" + $dd.editor.settings.tabLength + "}|\\s*)"), ''):text;
 						} else {
 							text = '\t' + text;
 						}
-						this.doc.lines[curr] = new drdelambre.editor.Line(text, state);
+						this.doc.lines[curr] = new $dd.editor.Line(text, state);
 						state = this.doc.lines[curr++].format(this.doc.mode);
 					}
 					this.pager.updateLine(this.doc, this.doc.selection.start.line);
@@ -342,7 +317,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 				.replace(/&/g,'&amp;')
 				.replace(/>/g,'&gt;')
 				.replace(/</g,'&lt;')
-				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+				.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' '));
 		wider.style.display = 'inline-block';
 		this.pager.element.appendChild(wider);
 		this.pager.element.style.textIndent = 0;
@@ -468,7 +443,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 		if(this.scrollIndex.timer)
 			return;
 		
-		var throttle = drdelambre.bind(function(){
+		var throttle = function(){
 			var cleanTouch;
 			for(var ni = this.scrollIndex.events.length; ni != 0;){
 				for(var no = this.scrollIndex.events[--ni].length; no!=0;){
@@ -490,7 +465,7 @@ drdelambre.editor.Editor = new drdelambre.class({
 			this.scrollIndex.x = cleanTouch.pageX;
 			this.scrollIndex.y = cleanTouch.pageY;
 //			this.element.getElementsByTagName('pre')[0].style.top = (0-this.pager.element.scrollTop+(2*this.pager.view.lineHeight)) + 'px';
-		}, this);
+		}.bind(this);
 		this.element.getElementsByTagName('pre')[0].style.display = 'none';
 		this.element.getElementsByClassName('key-toggle')[0].style.display = 'none';
 		this.scrollIndex.timer = setInterval(throttle,50);
@@ -517,22 +492,22 @@ drdelambre.editor.Editor = new drdelambre.class({
 	},
 	
 	cut : function(evt){
-		setTimeout(drdelambre.bind(function(){ this.doc.clearSelection(); },this),0);
+		setTimeout(function(){ this.doc.clearSelection(); }.bind(this),0);
 	},
 	paste : function(evt){
 		this.textarea.value = '';
 		this.textarea.focus();
 		this.doc.clearSelection();
-		setTimeout(drdelambre.bind(function(){
+		setTimeout(function(){
 			this.doc.insert(this.textarea.value);
 			this.textarea.value = '';
-		},this),0);
+		}.bind(this),0);
 	}
 });
 
 /*
  *		class:    Pager
- *		module:   drdelambre.editor
+ *		module:   $dd.editor
  *		author:   Alex Boatwright (drdelambre@gmail.com)
  *
  *		description:
@@ -542,7 +517,7 @@ drdelambre.editor.Editor = new drdelambre.class({
  *			manages all of that book keeping
  *
  */
-drdelambre.editor.Pager = new drdelambre.class({
+$dd.editor.Pager = new $dd.object({
 	element: null,
 	muncher: null,
 	doc: null,
@@ -559,16 +534,16 @@ drdelambre.editor.Pager = new drdelambre.class({
 	init : function(elem, doc, gutter){
 		this.element = elem;
 		if(!this.element)
-			throw new Error('drdelambre.editor.Pager: initialized without a container element');
+			throw new Error('$dd.editor.Pager: initialized without a container element');
 
 		this.gutter = gutter;
 		var spacer = document.createElement('div');
 		spacer.className = 'line';
 		this.element.appendChild(spacer);
 		this.view.lineHeight = spacer.clientHeight;
-		this.view.end = Math.floor(this.element.clientHeight/this.view.lineHeight) - 1;
+		this.view.end = Math.floor(this.element.clientHeight/this.view.lineHeight);
 		this.element.removeChild(spacer);
-		
+
 		this.element.innerHTML = Array(this.view.end + 6).join('<div class="line"></div>');
 		this.gutter.innerHTML = Array(this.view.end + 6).join('<div class="line"></div>');
 		var line = this.gutter.getElementsByClassName('line');
@@ -586,11 +561,11 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.muncher.style.whiteSpace = 'pre';
 		this.element.parentNode.insertBefore(this.muncher, this.element);
 
-		this.doc = doc || new drdelambre.editor.Document();
+		this.doc = doc || new $dd.editor.Document();
 		if(this.doc.loaded) this.populate(this.doc);
-		drdelambre.editor.subscribe('/editor/doc/change', this.updateLine);
-		drdelambre.editor.subscribe('/editor/doc/loaded', this.populate);
-		drdelambre.editor.subscribe('/editor/caret', this.scrollTo);
+		$dd.subscribe('/editor/doc/change', this.updateLine);
+		$dd.subscribe('/editor/doc/loaded', this.populate);
+		$dd.subscribe('/editor/caret', this.scrollTo);
 	},
 	populate : function(doc){
 		if(doc.__inst_id__ != this.doc.__inst_id__)
@@ -600,12 +575,12 @@ drdelambre.editor.Pager = new drdelambre.class({
 		this.view.start = 0;
 		var lines = this.element.getElementsByClassName('line'),
 			guts = this.gutter.getElementsByClassName('line'),
-			ni = 2;
+			ni;
 
-		this.doc.format(0,this.view.end + 2);
-		for(; ni <= this.view.end+4; ni++){
-			guts[ni].innerHTML = ni - 1;
-			lines[ni].innerHTML = this.doc.getFormattedLine(ni-2);
+		this.doc.format(0,this.view.end + 3);
+		for(ni = 0; ni <= this.view.end+2; ni++){
+			guts[ni+2].innerHTML = ni + 1;
+			lines[ni+2].innerHTML = this.doc.getFormattedLine(ni);
 		}
 
 		this.resetRight();
@@ -640,9 +615,9 @@ drdelambre.editor.Pager = new drdelambre.class({
 				.replace(/&/g,'&amp;')
 				.replace(/</g,'&lt;')
 				.replace(/>/g,'&gt;')
-				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength).join(' '));
+				.replace(/\t/g,Array($dd.editor.settings.tabLength).join(' '));
 		this.view.lineWidth = this.muncher.offsetWidth;
-		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'));
+		this.view.right = this.element.offsetWidth - this.view.lineWidth - 2*parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'),10);
 		if(this.view.right > 0)
 			this.view.right = 0;
 	},
@@ -650,20 +625,20 @@ drdelambre.editor.Pager = new drdelambre.class({
 	pixelToText : function(pageX, pageY){
 		var line = this.element.getElementsByClassName('line'),
 			count = 2;
-		while(count < line.length && pageY > drdelambre.getOffset(line[count]).top)
+		while(count < line.length && pageY > $dd.getOffset(line[count]).top)
 			count++;
 
 		count = count - 3 + this.view.start;
 
 		if(count > this.doc.lines.length - 1)
-			count = this.doc.lines.length - 1
+			count = this.doc.lines.length - 1;
 		else if(count > this.view.end)
 			count = this.view.end;
 
-		var mun = this.muncher, left = pageX - drdelambre.getOffset(line[0]).left - this.view.left,
-			lstr = mstr = '', rstr = this.doc.getLine(count), mid = 0;
+		var mun = this.muncher, left = pageX - $dd.getOffset(line[0]).left - this.view.left,
+			lstr = '', mstr = '', rstr = this.doc.getLine(count), mid = 0;
 
-		mun.innerHTML = rstr.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+		mun.innerHTML = rstr.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' '));
 		var test = mun.offsetWidth;
 		if(left > test)
 			return { line: count, char: rstr.length };
@@ -678,7 +653,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 				rstr = rstr.substr(mid);
 			}
 
-			mun.innerHTML = (lstr + mstr).replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+			mun.innerHTML = (lstr + mstr).replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' '));
 			if(rstr.length){
 				if(mun.offsetWidth > left)
 					rstr = mstr;
@@ -695,10 +670,10 @@ drdelambre.editor.Pager = new drdelambre.class({
 				.replace(/</g,'&lt;')
 				.replace(/>/g,'&gt;')
 				.substr(0,cursor.char)
-				.replace(/\t/g, Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+				.replace(/\t/g, Array($dd.editor.settings.tabLength + 1).join(' '));
 		return {
 			top: top,
-			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'))
+			left: this.muncher.offsetWidth + this.view.left + parseInt(document.defaultView.getComputedStyle(this.element,null).getPropertyValue('padding-left'),10)
 		};
 	},
 
@@ -727,20 +702,21 @@ drdelambre.editor.Pager = new drdelambre.class({
 		var height = this.view.lineHeight * 2,
 			elem = this.element,
 			gut = this.gutter,
-			newTop = elem.scrollTop - y;
+			newTop = elem.scrollTop - y,
+			diff;
 
-		if(	(this.view.start == 0 && newTop < height) ||
+		if(	(this.view.start === 0 && newTop < height) ||
 			(this.view.end > this.doc.lines.length - 2 && newTop > height)){
 			elem.scrollTop = gut.scrollTop = height;
 			return;
 		}
 
 		if(newTop < 0){
-			var diff = Math.round((0 - newTop)/height) + 1;
+			diff = Math.round((0 - newTop)/height) + 1;
 			newTop = height;
 			this.moveUp(diff*2);
 		} else if(newTop > height*2){
-			var diff = Math.round((newTop - height*2)/height) + 1;
+			diff = Math.round((newTop - height*2)/height) + 1;
 			newTop = height;
 			if(diff > 0)
 				this.moveDown(diff*2);
@@ -755,7 +731,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 
 		elem.scrollTop = gut.scrollTop = newTop;
 		this.element.style.textIndent = this.view.left + 'px';
-		drdelambre.editor.publish('/editor/scroll', newTop);
+		$dd.publish('/editor/scroll', newTop);
 	},
 	scrollTo : function(){
 		if(this.doc.cursor.line == this.view.start){
@@ -779,7 +755,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 			for(var ni = 0; ni < gut.length; ni++)
 				gut[ni].innerHTML = ni + this.view.start - 1;
 
-			drdelambre.editor.publish('/editor/scroll');
+			$dd.publish('/editor/scroll');
 		}
 		else if(this.doc.cursor.line >= this.view.end + 1){
 			var curr = this.view.end,
@@ -803,7 +779,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 			for(var ni = 0; ni < gut.length; ni++)
 				gut[ni].innerHTML = ni + this.view.start - 1;
 
-			drdelambre.editor.publish('/editor/scroll');
+			$dd.publish('/editor/scroll');
 		}
 	},
 	getView : function(){
@@ -838,6 +814,7 @@ drdelambre.editor.Pager = new drdelambre.class({
 
 		this.view.start-=lines;
 		this.view.end-=lines;
+		console.log(this.view.start + ':' + this.view.end);
 	},
 	moveDown : function(lines){
 		if(!lines)
@@ -845,16 +822,18 @@ drdelambre.editor.Pager = new drdelambre.class({
 		else if(lines + this.view.end > this.doc.lines.length - 1)
 			lines = this.doc.lines.length - 1 - this.view.end;
 
-		var end = this.view.end + 2,
+		var end = this.view.end+2,
 			elem = this.element,
 			gut = this.gutter,
 			len = this.doc.lines.length - 1;
-		this.doc.format(end, lines);
+
+		this.doc.format(end, lines+1);
+		console.log('{ s: ' + this.view.start + ', e: ' + this.view.end + ', fs: ' + end + ', fe:  ' + (end+lines) + '}');
 		
 		for(var ni = 0; ni < lines; ni++){
 			if(end + ni + 1 > len)
 				elem.firstChild.innerHTML = '';
-			else 
+			else
 				elem.firstChild.innerHTML = this.doc.getFormattedLine(end + ni + 1);
 
 			gut.firstChild.innerHTML = end + ni + 2;
@@ -865,12 +844,13 @@ drdelambre.editor.Pager = new drdelambre.class({
 
 		this.view.start+=lines;
 		this.view.end+=lines;
+		console.log(this.view.start + ':' + this.view.end);
 	}
 });
 
 /*
  *		class:    Document
- *		module:   drdelambre.editor
+ *		module:   $dd.editor
  *		author:   Alex Boatwright (drdelambre@gmail.com)
  *
  *		description:
@@ -878,7 +858,7 @@ drdelambre.editor.Pager = new drdelambre.class({
  *			request and handles the serving of lines from that file.
  *
  */
-drdelambre.editor.Document = new drdelambre.class({
+$dd.editor.Document = new $dd.object({
 	loaded: false,
 	lines: [],
 	_mode: null,
@@ -905,7 +885,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		if(mode)
 			this._mode = mode;
 		else
-			this._mode = new drdelambre.editor.mode.PlainText();
+			this._mode = new $dd.editor.mode.PlainText();
 	},
 	fromString : function(data){
 		if(typeof data !== "string") return;
@@ -919,20 +899,20 @@ drdelambre.editor.Document = new drdelambre.class({
 			state = null;
 		for(var ni = 0; ni < lines.length; ni++){
 			if(	lines[ni]
-					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+					.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length
 				> this.longest
-					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
+					.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length
 			)
 				this.longest = lines[ni];
-			line = new drdelambre.editor.Line(lines[ni]);
+			line = new $dd.editor.Line(lines[ni]);
 			this.lines.push(line);
 		}
 		this.loaded = true;
-		drdelambre.editor.publish('/editor/doc/loaded', this);
+		$dd.publish('/editor/doc/loaded', this);
 	},
 	fromURL : function(path){
 		this.loaded = false;
-		drdelambre.ajax({
+		$dd.ajax({
 			url: path,
 			success: this.fromString
 		});
@@ -945,12 +925,12 @@ drdelambre.editor.Document = new drdelambre.class({
 				char: this.cursor.char
 			};
 		else if(pos.line < 0 || pos.line > this.lines.length - 1)
-			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
+			throw new Error('$dd.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
 		else if(pos.char > this.getLine(pos.line).length)
 			pos.char = this.getLine(pos.line).length;
 
 		var state = pos.line > 0?this.lines[pos.line-1]._state:null,
-			before = new drdelambre.editor.Line(this.lines[pos.line].text.substr(0,pos.char), state),
+			before = new $dd.editor.Line(this.lines[pos.line].text.substr(0,pos.char), state),
 			after = this.lines[pos.line].text.substr(pos.char);
 
 		text = text.split('\n');
@@ -959,15 +939,11 @@ drdelambre.editor.Document = new drdelambre.class({
 			curr = 0;
 
 		for(var ni = 0; ni < text.length-1;ni++){
-			if(	text[ni]
-					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
-				> this.longest
-					.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
-			)
+			if(text[ni].replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length > this.longest.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length)
 				this.longest = text[ni];
 			lines[curr++].text += text[ni];
 			state = lines[curr-1].format(this.mode);
-			lines.push(new drdelambre.editor.Line('',state));
+			lines.push(new $dd.editor.Line('',state));
 		}
 		lines[curr++].text += text[ni];
 		pos.char = lines[lines.length - 1].text.length;
@@ -975,11 +951,7 @@ drdelambre.editor.Document = new drdelambre.class({
 		lines[lines.length - 1]._state = state;
 		state = lines[lines.length - 1].format(this.mode);
 
-		if(	lines[lines.length - 1].text
-				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
-			> this.longest
-				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')).length
-		)
+		if(lines[lines.length - 1].text.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length > this.longest.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')).length)
 			this.longest = lines[lines.length - 1].text;
 
 		this.lines = this.lines.slice(0,pos.line).concat(lines).concat(this.lines.slice(pos.line+1));
@@ -991,7 +963,7 @@ drdelambre.editor.Document = new drdelambre.class({
 
 		this.cursor = pos;
 
-		drdelambre.editor.publish('/editor/doc/change', [this, pos.line - lines.length + 1]);
+		$dd.publish('/editor/doc/change', this, pos.line - lines.length + 1);
 	},
 	remove : function(length, pos){
 		if(!pos)
@@ -1000,7 +972,7 @@ drdelambre.editor.Document = new drdelambre.class({
 				char: this.cursor.char
 			};
 		else if(pos.line < 0 || pos.line > this.lines.length - 1)
-			throw new Error('drdelambre.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
+			throw new Error('$dd.editor.Document: insert out of range\n\trequested line ' + (pos.line + 1) + ' of ' + this.lines.length);
 		else if(pos.char > this.lines[pos.line].length)
 			pos.char = this.lines[pos.line].length;
 			
@@ -1033,12 +1005,12 @@ drdelambre.editor.Document = new drdelambre.class({
 			state = this.lines[curr++].format(this.mode);
 		}
 		this.cursor = pos;
-		drdelambre.editor.publish('/editor/doc/change',[this, pos.line]);
+		$dd.publish('/editor/doc/change',this, pos.line);
 	},
 	getLine : function(index){
 		if(index === 0) index = 0;
 		else if(!index) index = this._cursor.line;
-		else if(index < 0) throw new Error('drdelambre.editor.Document: getLine called with negative index');
+		else if(index < 0) throw new Error('$dd.editor.Document: getLine called with negative index');
 
 		if(index >= this.lines.length) return '';
 		return this.lines[index].text;
@@ -1046,7 +1018,7 @@ drdelambre.editor.Document = new drdelambre.class({
 	getFormattedLine : function(index){
 		if(index === 0) index = 0;
 		else if(!index) index = this._cursor.line;
-		else if(index < 0) throw new Error('drdelambre.editor.Document: getFormattedLine called with negative index');
+		else if(index < 0) throw new Error('$dd.editor.Document: getFormattedLine called with negative index');
 
 		if(index >= this.lines.length) return '';
 		return this.lines[index].formatted;
@@ -1056,12 +1028,12 @@ drdelambre.editor.Document = new drdelambre.class({
 		var state = index > 0? this.lines[index-1]._state : null;
 		for(var ni = 0; ni < length; ni++){
 			if(index + ni < 0) continue;
-			if(index + ni == this.lines.length - 1) break;
+			if(index + ni >= this.lines.length - 1) break;
 			this.lines[index+ni]._state = state;
 			state = this.lines[index+ni].format(this.mode);
 		}
 		index += length;
-		if(index >= this.lines.length - 1) return;
+		if(index >= this.lines.length - 2) return;
 		while(this.lines[++index]._state != state){
 			this.lines[index]._state = state;
 			state = this.lines[index].format(this.mode);
@@ -1097,30 +1069,30 @@ drdelambre.editor.Document = new drdelambre.class({
 		return str.substr(0,str.length - off - 1).substr(start.char);
 	},
 
-	get cursor(){ return {line: this._cursor.line, char: this._cursor.char }; },
-	set cursor(obj){
+	_getcursor : function(){ return {line: this._cursor.line, char: this._cursor.char }; },
+	_setcursor : function(obj){
 		if(	!obj ||
 			!obj.hasOwnProperty('line') ||
 			!obj.hasOwnProperty('char') ||
 			obj.line < 0 ||
 			obj.line > this.lines.length ||
 			obj.char > this.getLine(obj.line).length){
-			throw new Error('drdelambre.editor.Document: invalid cursor object\n\t{ line: ' + (obj.line?obj.line:'undefined') + ', char: ' + (obj.char?obj.char:'undefined') + ' }');
+			throw new Error('$dd.editor.Document: invalid cursor object\n\t{ line: ' + (obj.line?obj.line:'undefined') + ', char: ' + (obj.char?obj.char:'undefined') + ' }');
 		}
 
 		this._cursor.line = obj.line;
 		this._cursor.char = obj.char;
-		drdelambre.editor.publish('/editor/caret', this._cursor);
+		$dd.publish('/editor/caret', this._cursor);
 	},
 	
-	get selection(){
+	_getselection : function(){
 		return {
 			start: this._selection.start,
 			end: this._selection.end,
 			length: this._selection.length
 		}
 	},
-	set selection(obj){
+	_setselection : function(obj){
 		if(	!obj ||
 			!obj.hasOwnProperty('start') ||
 			!obj.start.hasOwnProperty('line') ||
@@ -1129,7 +1101,7 @@ drdelambre.editor.Document = new drdelambre.class({
 			obj.start.char < 0 ||
 			obj.start.line > this.lines.length ||
 			obj.start.char > this.getLine(obj.start.line).length	)
-			throw new Error('drdelambre.editor.Document: invalid selection set');
+			throw new Error('$dd.editor.Document: invalid selection set');
 		if(	!obj.hasOwnProperty('end') ||
 			!obj.end.hasOwnProperty('line') ||
 			!obj.end.hasOwnProperty('char') ||
@@ -1156,13 +1128,13 @@ drdelambre.editor.Document = new drdelambre.class({
 		obj.length = len;
 
 		this._selection = obj;
-		drdelambre.editor.publish('/editor/selection', this);
+		$dd.publish('/editor/selection', this);
 	},
 	
-	get mode(){
+	_getmode : function(){
 		return this._mode;
 	},
-	set mode(obj){
+	_setmode : function(obj){
 		//trigger reformatting here
 		this._mode = obj;
 	}
@@ -1170,7 +1142,7 @@ drdelambre.editor.Document = new drdelambre.class({
 
 /*
  *		class:    Line
- *		module:   drdelambre.editor
+ *		module:   $dd.editor
  *		author:   Alex Boatwright (drdelambre@gmail.com)
  *
  *		description:
@@ -1178,7 +1150,7 @@ drdelambre.editor.Document = new drdelambre.class({
  *			makes lines easier to work with
  *
  */
-drdelambre.editor.Line = new drdelambre.class({	
+$dd.editor.Line = new $dd.object({	
 	text : '',
 	_formatted: null,
 	_state:null,
@@ -1189,7 +1161,7 @@ drdelambre.editor.Line = new drdelambre.class({
 	},
 	format : function(mode){
 		var pos = 0,
-			text = this.text.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' ')),
+			text = this.text.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' ')),
 			token;
 		this._formatted = '';
 		while(pos < text.length){
@@ -1227,7 +1199,7 @@ drdelambre.editor.Line = new drdelambre.class({
 				.replace(/&/g,'&amp;')
 				.replace(/</g,'&lt;')
 				.replace(/>/g,'&gt;')
-				.replace(/\t/g,Array(drdelambre.editor.settings.tabLength + 1).join(' '));
+				.replace(/\t/g,Array($dd.editor.settings.tabLength + 1).join(' '));
 		return this._formatted
 	},
 	set formatted(str){
@@ -1243,8 +1215,8 @@ drdelambre.editor.Line = new drdelambre.class({
  *		different things on both sides of Line.format, but check out that
  *		function for any questions
  */
-drdelambre.editor.mode = {};
-drdelambre.editor.mode.Javascript = new drdelambre.class({
+$dd.editor.mode = {};
+$dd.editor.mode.Javascript = new $dd.object({
 	mime: 'application/javascript',
 	operator: /[\[\]+\-*&%=<>!?|~]/,
 	keywords: {
@@ -1428,7 +1400,7 @@ drdelambre.editor.mode.Javascript = new drdelambre.class({
 		}
 	}
 });
-drdelambre.editor.mode.CSS = new drdelambre.class({
+$dd.editor.mode.CSS = new $dd.object({
 	mime: 'text/css',
 	token : function(line, start, state){
 		line = line.substr(start);
@@ -1515,7 +1487,7 @@ drdelambre.editor.mode.CSS = new drdelambre.class({
 		}
 	}
 });
-drdelambre.editor.mode.PlainText = new drdelambre.class({
+$dd.editor.mode.PlainText = new $dd.object({
 	mime: 'text/plain',
 	token : function(line, start){
 		return {

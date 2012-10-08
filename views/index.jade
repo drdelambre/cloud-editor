@@ -1,35 +1,7 @@
-head
-	meta(name='viewport', content='width=device-width,initial-scale=1')
-	style(type='text/css')
-		body {
-			margin: 0;
-			padding: 0;
-			background: #e0e0c8;
-		}
-
-		/* =MediaQueries!
-		*************************************************/
-		@media screen and (max-width: 709px){
-			.file-editor {
-				padding: 0;
-				font-size: 0.8em;
-			}
-			
-			.editor,
-			.editor:before,
-			.editor .gutter {
-				border-radius: 0;
-			}
-		}
-	link(href="images/favicon.png", rel="icon", type="image/png")
-	link(rel="stylesheet", type="text/css", href="css/file-editor.css")
-	link(rel="stylesheet", type="text/css", href="css/editor.css")
-	script(src="js/default.js", type="text/javascript")
-	script(src="js/editor.js", type="text/javascript")
-	script(src="js/file-editor.js", type="text/javascript")
 body
 	.file-editor
 		.file-slider
+			img.fullscreen(src="images/fullscreen.png")
 			.slide
 				.entry.open open
 		.wrap
@@ -50,17 +22,28 @@ body
 					img(src="images/keyboard.png")
 					| keyboard
 			.settings
-				h1 settings
-				.bottom-wrap
-					.left
-						h1 editor preview
-						.preview.editor
-					.right
-						.help
-							div <----------------------
-							| click on the editor to configure its look
-							div <----------------------
-			.ftp-browser
+				.menu
+					h1 colors
+					select
+					input
+				.disclaimer yeah, i have stuff to put here, there are just more pressing issues
+			.file-browser
+				.login
+					.prompt
+						.title
+							| log in here
+							div to save any changes you may have made
+						.row
+							.title email
+							.input-wrap
+								input
+						.row
+							.title password
+							.input-wrap
+								input(type='password')
+						.button sign up
+						.button.main login
+						.button cancel
 				.info
 					.action.top
 						.button.disabled rename
@@ -70,12 +53,14 @@ body
 						h2 make sure to find a good one
 					.display.folder
 						img(src="images/folder.png")
+						a.download download
 						.name filename
 						.modified
 							| modified
 							span tuesday
 					.display.file
 						img(src="images/file.png")
+						a.download download
 						.name filename
 						.size 30MB
 						.modified
@@ -90,255 +75,33 @@ body
 						.button.disabled open
 						.button.last cancel
 				.pane-slide
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.new
-							span +
-							| new
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-					.pane
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder.selected coolhjask dvkajshdv kjahsd vkjas dvkjhads vkjhads vkjhas dvkjhads vkjhads vkjhas dvkjhas dvkjh asdjhv 
-						.entry.folder cool
-						.entry.folder cool
-						.entry.folder cool
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file files
-						.entry.file files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file.unsupported files
-						.entry.file files
 		.footer
 			.line-count
-				| line:
+				| line
 				span 1
-				| char:
+				| char
 				span 0
-			.set-button settings
 			select
 				option choose a language
 				option --------------
+			.set-button settings
 script
-	var edit = new drdelambre.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
+	var edit = new $dd.editor.FileEditor(document.getElementsByClassName('file-editor')[0]);
+	edit.loadStyle({
+		background: '#272822',
+		gutter: '#555',
+		highlight: '#49483e',
+		line: '#302f29',
+		cursor: '#aaa',
+
+		text: '#f8f8f2',
+		keyword: '#66D9EF',
+		comment: '#75715E',
+		operator: '#F92672',
+		number: '#AE81FF',
+		string: '#E6DB74',
+		atom: '#FD971F'
+	});
 	window.addEventListener('load',function(){
 		edit.open('js/editor.js');
 		edit.open('css/editor.css');
